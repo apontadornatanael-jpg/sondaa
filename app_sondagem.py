@@ -27,7 +27,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO TOTALMENTE VAZIA DA SESSÃO ---
+# --- INICIALIZAÇÃO DA SESSÃO ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = []
 
@@ -39,7 +39,7 @@ st.header("1. Cabeçalho do Projeto & Equipe Técnica")
 
 col_logo, col_gest = st.columns([1, 3])
 with col_logo:
-    st.subheader("🖼️ Logomarca")
+    st.subheader("🖼️ Logomarca da Empresa")
     logo_file = st.file_uploader("Carregar Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
     img_logo_pil = Image.open(logo_file) if logo_file else None
     if img_logo_pil:
@@ -48,22 +48,37 @@ with col_logo:
 with col_gest:
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
-        cliente = st.text_input("Projeto/Cliente", value="")
-        sonda = st.text_input("Sonda", value="")
+        empresa = st.text_input("Empresa / Mineradora", value="")
+        nome_projeto = st.text_input("Nome do Projeto", value="")
     with col_g2:
-        furo_id = st.text_input("Furo", value="")
-        inclin_azim = st.text_input("Inclin./Azimute", value="")
+        coordenador = st.text_input("Coordenador do Projeto", value="")
+        supervisor = st.text_input("Supervisor de Campo", value="")
     with col_g3:
-        sondador = st.text_input("Sondador Responsável", value="")
-        coords = st.text_input("Coordenadas", value="")
+        geologo = st.text_input("Geólogo Responsável", value="")
+        sondador_equipe = st.text_input("Sondador / Equipe", value="")
 
-col_f1, col_f2, col_f3 = st.columns(3)
-with col_f1:
-    data_rel = st.date_input("Data", value=datetime.now())
-with col_f2:
-    turno = st.selectbox("Turno", ["Diurno", "Noturno"])
-with col_f3:
+col_p1, col_p2, col_p3 = st.columns(3)
+with col_p1:
+    furo_id = st.text_input("ID do Furo", value="F-001")
+with col_p2:
+    diametro = st.selectbox("Diâmetro", ["HQ (63.5mm)", "NQ (47.6mm)", "PQ (85.0mm)", "BQ (36.5mm)"])
+with col_p3:
     diesel_input = st.number_input("Consumo Total Diesel (L)", value=0, step=5)
+
+# Seção de Coordenadas e Detalhes
+with st.expander("🌐 Coordenadas GPS e Mapa do Furo", expanded=True):
+    col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+    with col_c1:
+        latitude = st.number_input("Latitude", value=-6.515831, format="%.6f")
+        longitude = st.number_input("Longitude", value=-36.344525, format="%.6f")
+    with col_c2:
+        datum = st.text_input("Datum", value="SIRGAS 2000")
+        inclinacao = st.number_input("Inclinação (°)", value=-90.0, step=1.0, format="%.1f")
+    with col_c3:
+        azimute = st.number_input("Azimute (°)", value=0.0, step=1.0, format="%.1f")
+    with col_c4:
+        dt_inicio = st.date_input("Data de Início", value=datetime.now())
+        dt_termino = st.date_input("Data de Término", value=datetime.now())
 
 st.markdown("---")
 
@@ -94,7 +109,7 @@ with col_h2:
 with col_l1:
     litologia_obs = st.text_input("Descrição Litológica / Observações", value="")
 
-# Registro Fotográfico da Manobra / Caixa
+# Registro Fotográfico
 st.subheader("📷 Registro Fotográfico da Manobra")
 aba_cam, aba_up = st.tabs(["📸 Tirar Foto Agora", "📁 Carregar da Galeria"])
 
@@ -210,10 +225,10 @@ doc = SimpleDocTemplate(
 )
 elements = []
 
-# Estilos de Texto
+# Estilos de Texto PDF
 st_title = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.HexColor('#0EA5E9'))
 st_subtitle = ParagraphStyle('H2', fontName='Helvetica', fontSize=7.5, leading=9, textColor=colors.HexColor('#94A3B8'))
-st_meta_lbl = ParagraphStyle('ML', fontName='Helvetica', fontSize=7, leading=9, textColor=colors.HexColor('#0F172A'))
+st_meta_lbl = ParagraphStyle('ML', fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#0F172A'))
 
 st_kpi_lbl = ParagraphStyle('KL', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#475569'))
 st_kpi_val = ParagraphStyle('KV', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=0)
@@ -224,7 +239,7 @@ st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8
 st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
 st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
-# 1. CABEÇALHO SUPERIOR
+# 1. CABEÇALHO SUPERIOR (PDF)
 h_text_cell = [
     Paragraph("<b>DRILLDATA</b>", st_title),
     Paragraph("Relatório Técnico & Boletim Diário de Sondagem", st_subtitle)
@@ -245,16 +260,16 @@ t_h_left.setStyle(TableStyle([
 ]))
 
 meta_grid = [
-    [Paragraph("<b>Projeto/Cliente:</b> " + cliente, st_meta_lbl), Paragraph("<b>Furo:</b> " + furo_id, st_meta_lbl), Paragraph("<b>Data:</b> " + data_rel.strftime('%d/%m/%Y'), st_meta_lbl)],
-    [Paragraph("<b>Sonda:</b> " + sonda, st_meta_lbl), Paragraph("<b>Inclin./Azimute:</b> " + inclin_azim, st_meta_lbl), Paragraph("<b>Turno:</b> " + turno, st_meta_lbl)],
-    [Paragraph("<b>Sondador Responsável:</b> " + sondador, st_meta_lbl), Paragraph("<b>Coordenadas:</b> " + coords, st_meta_lbl), Paragraph("<b>Última Caixa:</b> " + str(ult_cx), st_meta_lbl)]
+    [Paragraph(f"<b>Empresa:</b> {empresa}", st_meta_lbl), Paragraph(f"<b>Furo:</b> {furo_id}", st_meta_lbl), Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m')} a {dt_termino.strftime('%d/%m/%Y')}", st_meta_lbl)],
+    [Paragraph(f"<b>Projeto:</b> {nome_projeto}", st_meta_lbl), Paragraph(f"<b>Diâmetro:</b> {diametro}", st_meta_lbl), Paragraph(f"<b>Coordenadas:</b> Lat: {latitude:.4f} | Long: {longitude:.4f}", st_meta_lbl)],
+    [Paragraph(f"<b>Coord./Geól.:</b> {coordenador} / {geologo}", st_meta_lbl), Paragraph(f"<b>Inclin./Azim.:</b> {inclinacao}° / {azimute}°", st_meta_lbl), Paragraph(f"<b>Sondador:</b> {sondador_equipe}", st_meta_lbl)]
 ]
 t_h_right = Table(meta_grid, colWidths=[6.3*cm, 6.3*cm, 6.1*cm])
 t_h_right.setStyle(TableStyle([
     ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    ('TOPPADDING', (0,0), (-1,-1), 3.5), ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
-    ('LEFTPADDING', (0,0), (-1,-1), 6),
+    ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+    ('LEFTPADDING', (0,0), (-1,-1), 5),
 ]))
 
 header_full = Table([[t_h_left, t_h_right]], colWidths=[9.4*cm, 18.7*cm])
@@ -386,8 +401,8 @@ st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.
 
 ass_table = Table([
     [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
-    [Paragraph(f"<b>{sondador if sondador else 'Sondador'}</b>", st_ass_nome), Paragraph("<b>Eng. Geotécnico / Geólogo</b>", st_ass_nome), Paragraph(f"<b>{cliente if cliente else 'Cliente'}</b>", st_ass_nome)],
-    [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
+    [Paragraph(f"<b>{sondador_equipe if sondador_equipe else 'Sondador / Equipe'}</b>", st_ass_nome), Paragraph(f"<b>{geologo if geologo else 'Geólogo Responsável'}</b>", st_ass_nome), Paragraph(f"<b>{empresa if empresa else 'Empresa / Cliente'}</b>", st_ass_nome)],
+    [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo / Geologia", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
 ], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
 
 ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
