@@ -1,232 +1,474 @@
-import io
-import pandas as pd
-import openpyxl
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-from openpyxl.utils import get_column_letter
-import streamlit as st
+import os
+from weasyprint import HTML
 
-st.set_page_config(
-    page_title="Boletim de Sondagem Rotativa", page_icon="🚜", layout="wide"
-)
+html_content = """<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Relatório Técnico & Boletim Diário de Sondagem - DRILLDATA</title>
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
 
-st.title("🚜 Gerador de Boletim de Sondagem Rotativa")
-st.markdown(
-    "Preencha os dados abaixo e clique no botão para gerar a planilha Excel profissional."
-)
+        @page {
+            size: A4 landscape;
+            margin: 10mm 12mm 12mm 12mm;
+            @bottom-right {
+                content: "Página " counter(page) " de " counter(pages);
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                color: #555555;
+            }
+            @bottom-left {
+                content: "DrillData — Sistema Digital de Sondagem Mineral";
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-size: 8pt;
+                color: #555555;
+            }
+        }
 
-# --- CABEÇALHO ---
-st.header("1. Informações Gerais do Furo")
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    modelo_sonda = st.text_input("Modelo Sonda", "LM 75")
-    cliente = st.text_input("Cliente", "ATLAS LITHIUM")
-    data_boletim = st.date_input("Data")
-with col2:
-    num_sonda = st.text_input("Nº Sonda", "04")
-    area = st.text_input("Área", "ABELHAS")
-    turno = st.selectbox("Turno", ["1º", "2º", "3º"])
-with col3:
-    furo_num = st.text_input("Furo Nº", "DHAB 109")
-    azimute = st.number_input("Azimute (°)", value=290)
-    angulo = st.number_input("Ângulo (°)", value=60)
-with col4:
-    horimetro_ini = st.number_input("Horímetro Inicial", value=319.9)
-    horimetro_fin = st.number_input("Horímetro Final", value=330.2)
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: #1a202c;
+            background-color: #ffffff;
+            font-size: 8.5pt;
+        }
 
-# --- PEÇA DE CORTE ---
-st.header("2. Peça de Corte")
-col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-with col_p1:
-    diam_p = st.text_input("Diâmetro", "NQ")
-with col_p2:
-    coroa_num = st.text_input("Coroa Nº", "89173-17")
-with col_p3:
-    calib = st.text_input("Calib", "138217")
-with col_p4:
-    outros_p = st.text_input("Outros", "")
+        /* HEADER SECTION */
+        .header-container {
+            display: table;
+            width: 100%;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #0d9488;
+            padding-bottom: 6px;
+        }
 
-# --- DADOS DE PERFURAÇÃO ---
-st.header("3. Perfuração e Recuperação")
-st.caption(
-    "Insira as manobras de perfuração. O avanço e a taxa de recuperação % serão calculados automaticamente."
-)
+        .header-left {
+            display: table-cell;
+            vertical-align: middle;
+            width: 20%;
+        }
 
-dados_padrao_perf = [
-    {"De": 44.10, "Até": 47.20, "Recuperado": 3.10, "Material": ""},
-    {"De": 47.20, "Até": 50.20, "Recuperado": 3.00, "Material": ""},
-    {"De": 50.20, "Até": 53.30, "Recuperado": 3.10, "Material": ""},
-    {"De": 53.30, "Até": 56.45, "Recuperado": 3.15, "Material": ""},
-    {"De": 56.45, "Até": 59.45, "Recuperado": 3.00, "Material": ""},
-]
+        .logo-box {
+            font-size: 16pt;
+            font-weight: 900;
+            color: #0d9488;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
 
-df_perf_edited = st.data_editor(
-    pd.DataFrame(dados_padrao_perf), num_rows="dynamic", use_container_width=True
-)
+        .header-center {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: center;
+            width: 60%;
+        }
 
-# --- SERVIÇOS E HORÁRIOS ---
-st.header("4. Descrição dos Serviços e Horários")
-dados_padrao_serv = [
-    {
-        "Descrição": "C/SSMA",
-        "Hora Inicial": "07:00",
-        "Hora Final": "07:15",
-        "Tempo (h)": "0:15",
-    },
-    {
-        "Descrição": "Manutenção Preventiva",
-        "Hora Inicial": "07:15",
-        "Hora Final": "07:30",
-        "Tempo (h)": "0:15",
-    },
-    {
-        "Descrição": "Perfurando",
-        "Hora Inicial": "07:30",
-        "Hora Final": "12:00",
-        "Tempo (h)": "4:30",
-    },
-    {
-        "Descrição": "Refeição",
-        "Hora Inicial": "12:00",
-        "Hora Final": "13:00",
-        "Tempo (h)": "1:00",
-    },
-    {
-        "Descrição": "Perfurando",
-        "Hora Inicial": "13:00",
-        "Hora Final": "18:00",
-        "Tempo (h)": "5:00",
-    },
-]
+        .header-title {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-df_serv_edited = st.data_editor(
-    pd.DataFrame(dados_padrao_serv), num_rows="dynamic", use_container_width=True
-)
+        .header-right {
+            display: table-cell;
+            vertical-align: middle;
+            text-align: right;
+            width: 20%;
+            font-size: 7.5pt;
+            color: #64748b;
+        }
 
-# --- INSUMOS E RODAPÉ ---
-st.header("5. Insumos, Revestimento e Observações")
-col_i1, col_i2, col_i3 = st.columns(3)
-with col_i1:
-    diesel_sonda = st.text_input("Óleo Diesel (Sonda)", "125L")
-    diesel_torre = st.text_input("Óleo Diesel (Torre)", "")
-    diesel_bomba = st.text_input("Óleo Diesel (Bomba)", "")
-with col_i2:
-    rev_diam = st.text_input("Revestimento Diâmetro", "HQ")
-    rev_de = st.number_input("Revestimento De (m)", value=0.00)
-    rev_ate = st.number_input("Revestimento Até (m)", value=34.40)
-with col_i3:
-    num_caixa = st.text_input("Última Caixa do Furo", "32")
+        /* METADATA GRID */
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+        }
 
-obs = st.text_area("Observações", "")
+        .meta-table td {
+            padding: 4px 8px;
+            border: 1px solid #e2e8f0;
+            font-size: 8pt;
+            width: 33.33%;
+        }
 
+        .meta-label {
+            font-weight: bold;
+            color: #334155;
+        }
 
-# --- FUNÇÃO GERADORA DE EXCEL ---
-def gerar_excel_profissional():
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Boletim de Sondagem"
-    ws.views.sheetView[0].showGridLines = True
+        .meta-value {
+            color: #0f172a;
+        }
 
-    fonte_titulo = Font(name="Calibri", size=14, bold=True, color="1F4E78")
-    fonte_header = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
-    fonte_sub = Font(name="Calibri", size=10, bold=True, color="1F4E78")
-    fonte_normal = Font(name="Calibri", size=10)
+        /* KPI CARDS */
+        .kpi-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 6px 0;
+            margin-bottom: 8px;
+            margin-left: -6px;
+            margin-right: -6px;
+        }
 
-    fill_header = PatternFill(
-        start_color="1F4E78", end_color="1F4E78", fill_type="solid"
-    )
+        .kpi-card {
+            display: table-cell;
+            width: 25%;
+            background-color: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 4px;
+            padding: 6px;
+            text-align: center;
+        }
 
-    thin_border = Border(
-        left=Side(style="thin", color="D3D3D3"),
-        right=Side(style="thin", color="D3D3D3"),
-        top=Side(style="thin", color="D3D3D3"),
-        bottom=Side(style="thin", color="D3D3D3"),
-    )
+        .kpi-card.warning {
+            background-color: #fffbe0;
+            border-color: #fef08a;
+        }
 
-    ws.merge_cells("A1:K1")
-    ws["A1"] = "BOLETIM DE SONDAGEM ROTATIVA"
-    ws["A1"].font = fonte_titulo
-    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        .kpi-title {
+            font-size: 7pt;
+            font-weight: bold;
+            color: #166534;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
 
-    cabecalhos_info = [
-        ("A3", f"Modelo Sonda: {modelo_sonda}"),
-        ("C3", f"Nº Sonda: {num_sonda}"),
-        ("E3", f"Turno: {turno}"),
-        ("G3", f"Azimute: {azimute}°"),
-        ("I3", f"Data: {data_boletim.strftime('%d/%m/%Y')}"),
-        ("A4", f"Cliente: {cliente}"),
-        ("C4", f"Área: {area}"),
-        ("E4", f"Furo Nº: {furo_num}"),
-        ("G4", f"Ângulo: {angulo}°"),
-        ("I4", f"Horímetro: {horimetro_ini} - {horimetro_fin}"),
-    ]
+        .kpi-card.warning .kpi-title {
+            color: #854d0e;
+        }
 
-    for cell_ref, text in cabecalhos_info:
-        ws[cell_ref] = text
-        ws[cell_ref].font = fonte_sub
+        .kpi-value {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #15803d;
+        }
 
-    headers_perf = [
-        "De (m)",
-        "Até (m)",
-        "Avanço (m)",
-        "Recuperado (m)",
-        "Total (m)",
-        "% Rec.",
-        "Material Perfurado",
-    ]
-    ws.append([])
-    ws.append(headers_perf)
-    start_row_perf = 6
+        .kpi-card.warning .kpi-value {
+            color: #a16207;
+        }
 
-    for col_idx, h in enumerate(headers_perf, 1):
-        cell = ws.cell(row=start_row_perf, column=col_idx)
-        cell.font = fonte_header
-        cell.fill = fill_header
-        cell.alignment = Alignment(horizontal="center")
+        /* MAIN DATA TABLE */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 7.5pt;
+        }
 
-    rec_acumulada = 0.0
-    for idx, row in df_perf_edited.iterrows():
-        de = row.get("De", 0.0)
-        ate = row.get("Até", 0.0)
-        rec = row.get("Recuperado", 0.0)
-        avanco = round(ate - de, 2)
-        rec_acumulada += rec
-        pct_rec = round((rec / avanco * 100), 1) if avanco > 0 else 0.0
+        .data-table th {
+            background-color: #0d9488;
+            color: #ffffff;
+            font-weight: bold;
+            text-align: center;
+            padding: 5px 3px;
+            border: 1px solid #0f766e;
+            vertical-align: middle;
+            font-size: 7.5pt;
+        }
 
-        r_data = [
-            de,
-            ate,
-            avanco,
-            rec,
-            round(rec_acumulada, 2),
-            f"{pct_rec}%",
-            row.get("Material", ""),
-        ]
-        ws.append(r_data)
+        .data-table td {
+            padding: 4px 3px;
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            vertical-align: middle;
+        }
 
-    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, max_col=11):
-        for cell in row:
-            if cell.value:
-                cell.border = thin_border
-                if not cell.font.bold:
-                    cell.font = fonte_normal
+        .data-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
 
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or "")) for cell in col)
-        col_letter = get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+        .data-table td.desc {
+            text-align: left;
+            font-size: 7pt;
+        }
 
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    return buffer
+        .totals-row td {
+            background-color: #e2e8f0;
+            font-weight: bold;
+            border-top: 2px solid #0d9488;
+            color: #0f172a;
+        }
 
+        /* SIGNATURE SECTION */
+        .signatures-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
 
-st.markdown("---")
-if st.button("🚀 Gerar e Baixar Planilha Excel"):
-    excel_file = gerar_excel_profissional()
-    st.download_button(
-        label="📥 Download Planilha (.xlsx)",
-        data=excel_file,
-        file_name=f"Boletim_Sondagem_{furo_num}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
+        .signatures-table td {
+            width: 33.33%;
+            text-align: center;
+            vertical-align: top;
+            padding: 0 10px;
+        }
+
+        .line {
+            border-top: 1px solid #475569;
+            margin-bottom: 3px;
+            width: 85%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .sig-name {
+            font-weight: bold;
+            font-size: 8pt;
+            color: #0f172a;
+        }
+
+        .sig-role {
+            font-size: 7.5pt;
+            color: #475569;
+        }
+
+        .sig-company {
+            font-size: 7pt;
+            color: #64748b;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <div class="header-container">
+        <div class="header-left">
+            <div class="logo-box">DRILLDATA</div>
+        </div>
+        <div class="header-center">
+            <div class="header-title">Relatório Técnico & Boletim Diário de Sondagem</div>
+        </div>
+        <div class="header-right">
+            <span>Sistema Digital de Sondagem</span>
+        </div>
+    </div>
+
+    <!-- METADATA -->
+    <table class="meta-table">
+        <tr>
+            <td><span class="meta-label">Projeto/Cliente:</span> <span class="meta-value">Mineração Santa Rita</span></td>
+            <td><span class="meta-label">Furo:</span> <span class="meta-value"><b>DDH-024</b></span></td>
+            <td><span class="meta-label">Data:</span> <span class="meta-value">17/08/2026</span></td>
+        </tr>
+        <tr>
+            <td><span class="meta-label">Sonda:</span> <span class="meta-value">CS14 Core Drill</span></td>
+            <td><span class="meta-label">Inclin./Azimute:</span> <span class="meta-value">-60° / 180°</span></td>
+            <td><span class="meta-label">Turno:</span> <span class="meta-value">Diurno</span></td>
+        </tr>
+        <tr>
+            <td><span class="meta-label">Sondador Responsável:</span> <span class="meta-value">Natanael Souza</span></td>
+            <td><span class="meta-label">Coordenadas:</span> <span class="meta-value">E: 245120 | N: 9284100</span></td>
+            <td><span class="meta-label">Última Caixa:</span> <span class="meta-value">Nº 04</span></td>
+        </tr>
+    </table>
+
+    <!-- KPIS -->
+    <table class="kpi-table">
+        <tr>
+            <td class="kpi-card">
+                <div class="kpi-title">PROGRESSO TOTAL PERFURADO</div>
+                <div class="kpi-value">18,00 m</div>
+            </td>
+            <td class="kpi-card">
+                <div class="kpi-title">MÉDIA DE RECUPERAÇÃO</div>
+                <div class="kpi-value">96.8 %</div>
+            </td>
+            <td class="kpi-card warning">
+                <div class="kpi-title">TOTAL HORAS PARADAS</div>
+                <div class="kpi-value">2,5 h</div>
+            </td>
+            <td class="kpi-card">
+                <div class="kpi-title">CONSUMO TOTAL DIESEL</div>
+                <div class="kpi-value">105 L</div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- TABLE -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 3%;">Item</th>
+                <th style="width: 8%;">Horário</th>
+                <th style="width: 5%;">De (m)</th>
+                <th style="width: 5%;">Até (m)</th>
+                <th style="width: 5%;">Avanço (m)</th>
+                <th style="width: 6%;">Acumulado (m)</th>
+                <th style="width: 6%;">Recup. (m)</th>
+                <th style="width: 6%;">Recup. (%)</th>
+                <th style="width: 4%;">Nº Cx</th>
+                <th style="width: 5%;">Parado</th>
+                <th style="width: 15%;">Motivo Parada</th>
+                <th style="width: 32%;">Descrição Litológica / Observações</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>07:00 - 08:15</td>
+                <td>0,00</td>
+                <td>1,50</td>
+                <td>1,50</td>
+                <td>1,50</td>
+                <td>1,45</td>
+                <td>96,7%</td>
+                <td>01</td>
+                <td>0,0 h</td>
+                <td>Troca de Broca</td>
+                <td class="desc">Início do furo HQ. Solo de alteração/saprolito.</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>08:15 - 09:30</td>
+                <td>1,50</td>
+                <td>3,00</td>
+                <td>1,50</td>
+                <td>3,00</td>
+                <td>1,50</td>
+                <td>100,0%</td>
+                <td>01</td>
+                <td>0,0 h</td>
+                <td>Nenhuma</td>
+                <td class="desc">Saprolito avermelhado com fragmentos de quartzo.</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>09:30 - 11:00</td>
+                <td>3,00</td>
+                <td>6,00</td>
+                <td>3,00</td>
+                <td>6,00</td>
+                <td>2,85</td>
+                <td>95,0%</td>
+                <td>02</td>
+                <td>0,0 h</td>
+                <td>Nenhuma</td>
+                <td class="desc">Passagem para rocha alterada (Xisto friável).</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>11:00 - 12:00</td>
+                <td>6,00</td>
+                <td>7,50</td>
+                <td>1,50</td>
+                <td>7,50</td>
+                <td>1,50</td>
+                <td>100,0%</td>
+                <td>02</td>
+                <td>1,0 h</td>
+                <td>Manutenção Mecânica</td>
+                <td class="desc">Ajuste na bomba de lama / VAZAMENTO.</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>13:00 - 14:30</td>
+                <td>7,50</td>
+                <td>10,50</td>
+                <td>3,00</td>
+                <td>10,50</td>
+                <td>2,95</td>
+                <td>98,3%</td>
+                <td>03</td>
+                <td>0,0 h</td>
+                <td>Nenhuma</td>
+                <td class="desc">Rocha sã (Gnaisse cinza médio). Transição NQ.</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>14:30 - 15:45</td>
+                <td>10,50</td>
+                <td>13,50</td>
+                <td>3,00</td>
+                <td>13,50</td>
+                <td>3,00</td>
+                <td>100,0%</td>
+                <td>03</td>
+                <td>0,0 h</td>
+                <td>Nenhuma</td>
+                <td class="desc">Rocha sã maciça, excelente RQD.</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>15:45 - 16:30</td>
+                <td>13,50</td>
+                <td>15,00</td>
+                <td>1,50</td>
+                <td>15,00</td>
+                <td>1,48</td>
+                <td>98,7%</td>
+                <td>04</td>
+                <td>0,5 h</td>
+                <td>Aguardando Água</td>
+                <td class="desc">Caminhão pipa em reabastecimento.</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>16:30 - 17:30</td>
+                <td>15,00</td>
+                <td>18,00</td>
+                <td>3,00</td>
+                <td>18,00</td>
+                <td>3,00</td>
+                <td>100,0%</td>
+                <td>04</td>
+                <td>0,0 h</td>
+                <td>Nenhuma</td>
+                <td class="desc">Fim do turno. Preservação do testemunho.</td>
+            </tr>
+            <tr class="totals-row">
+                <td colspan="4" style="text-align: right;">TOTAIS / MÉDIAS OPERACIONAIS:</td>
+                <td>18,00 m</td>
+                <td>18,00 m</td>
+                <td>17,28 m</td>
+                <td>96.8%</td>
+                <td>Nº 04</td>
+                <td>2,5 h</td>
+                <td>Diesel: 105 L</td>
+                <td class="desc" style="font-weight: bold;">Furo finalizado no turno com alta recuperação.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- SIGNATURES -->
+    <table class="signatures-table">
+        <tr>
+            <td>
+                <div class="line"></div>
+                <div class="sig-name">Natanael Souza</div>
+                <div class="sig-role">Sondador / Operador Responsável</div>
+            </td>
+            <td>
+                <div class="line"></div>
+                <div class="sig-name">Eng. Geotécnico / Geólogo</div>
+                <div class="sig-role">Fiscalização de Campo</div>
+            </td>
+            <td>
+                <div class="line"></div>
+                <div class="sig-name">Supervisão de Operações</div>
+                <div class="sig-company">Mineração Santa Rita</div>
+            </td>
+        </tr>
+    </table>
+
+</body>
+</html>
+"""
+
+# Salva o arquivo HTML e renderiza em PDF
+with open("relatorio.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+HTML("relatorio.html").write_pdf("relatorio_drilldata_furo_DDH-024.pdf")
+print("PDF gerado com sucesso!")
