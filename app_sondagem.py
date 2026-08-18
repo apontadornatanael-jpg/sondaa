@@ -148,20 +148,37 @@ with col_h2:
 with col_l1:
     litologia_obs = st.text_input("Descrição Litológica / Observações da Manobra", value="")
 
-# Registro Fotográfico
-st.subheader("📷 Registro Fotográfico da Manobra")
-aba_cam, aba_up = st.tabs(["📸 Tirar Foto Agora", "📁 Carregar da Galeria"])
+# Registro Fotográfico (Até 3 Fotos)
+st.subheader("📷 Registro Fotográfico da Manobra (Até 3 fotos)")
+aba_up, aba_cam = st.tabs(["📁 Selecionar da Galeria (Até 3)", "📸 Tirar Foto Agorita"])
 
-img_capturada = None
-with aba_cam:
-    foto_cam = st.camera_input("Tirar foto da caixa/testemunho")
-    if foto_cam:
-        img_capturada = Image.open(foto_cam)
+fotos_manobra_pil = []
 
 with aba_up:
-    foto_file = st.file_uploader("Selecione uma imagem", type=['jpg', 'jpeg', 'png'], key="uploader_manobra")
-    if foto_file and not img_capturada:
-        img_capturada = Image.open(foto_file)
+    fotos_files = st.file_uploader(
+        "Selecione até 3 imagens da manobra/testemunho",
+        type=['jpg', 'jpeg', 'png'],
+        accept_multiple_files=True,
+        key="uploader_manobra_multi"
+    )
+    if fotos_files:
+        if len(fotos_files) > 3:
+            st.warning("⚠️ Foram selecionadas mais de 3 fotos. Apenas as 3 primeiras serão mantidas.")
+            fotos_files = fotos_files[:3]
+        for f in fotos_files:
+            fotos_manobra_pil.append(Image.open(f))
+
+with aba_cam:
+    foto_cam = st.camera_input("Tirar foto individual")
+    if foto_cam and len(fotos_manobra_pil) < 3:
+        fotos_manobra_pil.append(Image.open(foto_cam))
+
+if fotos_manobra_pil:
+    st.write(f"📸 **{len(fotos_manobra_pil)} foto(s) anexada(s) nesta manobra:**")
+    cols_preview = st.columns(len(fotos_manobra_pil))
+    for i, img in enumerate(fotos_manobra_pil):
+        with cols_preview[i]:
+            st.image(img, caption=f"Foto {i+1}", use_container_width=True)
 
 col_btn1, col_btn2 = st.columns([1, 4])
 with col_btn1:
@@ -190,7 +207,7 @@ if btn_adicionar:
             "Parado": horas_parado,
             "Motivo Parada": motivo_parada,
             "Descrição Litológica / Observações": litologia_obs,
-            "Foto": img_capturada
+            "Fotos": fotos_manobra_pil.copy()  # Lista com até 3 objetos PIL Image
         })
         st.success("✅ Manobra registrada!")
         st.rerun()
@@ -228,7 +245,10 @@ else:
 st.markdown("---")
 st.subheader("📋 Tabela do Boletim Diário")
 if not df.empty:
-    df_exibicao = df.drop(columns=['Foto'], errors='ignore')
+    # Exibe no Streamlit a quantidade de fotos anexadas em vez da imagem crua
+    df_exibicao = df.copy()
+    df_exibicao['Qtd Fotos'] = df_exibicao['Fotos'].apply(lambda x: len(x) if isinstance(x, list) else 0)
+    df_exibicao = df_exibicao.drop(columns=['Fotos'], errors='ignore')
     st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
 else:
     st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
@@ -434,7 +454,7 @@ t_obs.setStyle(TableStyle([
 elements.append(t_obs)
 elements.append(Spacer(1, 10))
 
-# ASSINATURAS DA FOLHA 1
+# ASSINATURAS DA FOLHA 1 (3 Assinaturas)
 st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
 st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
 
@@ -468,20 +488,21 @@ p2_header.setStyle(TableStyle([
 elements.append(p2_header)
 elements.append(Spacer(1, 10))
 
-# Fotos anexadas durante o preenchimento
-fotos_para_pdf = [item for item in st.session_state['itens_sondagem'] if item.get('Foto') is not None]
+# Mapeia todas as fotos de todas as manobras
+cards_de_fotos = []
 
-if fotos_para_pdf:
-    foto_rows = []
-    current_row = []
+for item in st.session_state['itens_sondagem']:
+    lista_fotos = item.get('Fotos', [])
+    total_fotos_manobra = len(lista_fotos)
     
-    for idx, item in enumerate(fotos_para_pdf):
+    for idx_foto, img_pil in enumerate(lista_fotos):
         img_buffer = io.BytesIO()
-        item['Foto'].convert('RGB').save(img_buffer, format='JPEG')
+        img_pil.convert('RGB').save(img_buffer, format='JPEG')
         img_buffer.seek(0)
         
-        rl_img = RLImage(img_buffer, width=8.5*cm, height=4.5*cm)
-        caption = Paragraph(f"<b>Manobra {item['Item']}</b>: {item['De (m)']}m - {item['Até (m)']}m | Cx: {item['Nº Cx']}", st_td)
+        rl_img = RLImage(img_buffer, width=8.5*cm, height=4.3*cm)
+        lbl_foto = f" ({idx_foto + 1}/{total_fotos_manobra})" if total_fotos_manobra > 1 else ""
+        caption = Paragraph(f"<b>Manobra {item['Item']}{lbl_foto}</b>: {item['De (m)']}m - {item['Até (m)']}m | Cx: {item['Nº Cx']}", st_td)
         
         cell_table = Table([[rl_img], [caption]], colWidths=[8.5*cm])
         cell_table.setStyle(TableStyle([
@@ -490,10 +511,15 @@ if fotos_para_pdf:
             ('TOPPADDING', (0,0), (-1,-1), 3),
             ('BOTTOMPADDING', (0,0), (-1,-1), 3)
         ]))
-        
-        current_row.append(cell_table)
-        
-        if len(current_row) == 3 or idx == len(fotos_para_pdf) - 1:
+        cards_de_fotos.append(cell_table)
+
+if cards_de_fotos:
+    foto_rows = []
+    current_row = []
+    
+    for idx, card in enumerate(cards_de_fotos):
+        current_row.append(card)
+        if len(current_row) == 3 or idx == len(cards_de_fotos) - 1:
             while len(current_row) < 3:
                 current_row.append("")
             foto_rows.append(current_row)
