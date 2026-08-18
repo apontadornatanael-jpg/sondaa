@@ -6,7 +6,7 @@ from PIL import Image
 
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
@@ -27,30 +27,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- DICIONÁRIO DE LITOLOGIA BASE ---
-DADOS_LITOLOGIA = {
-    "Solo de alteração / Saprolito": "HQ",
-    "Saprolito avermelhado c/ quartzo": "HQ",
-    "Rocha alterada (Xisto friável)": "HQ",
-    "Rocha sã (Gnaisse cinza médio)": "NQ",
-    "Rocha sã maciça (RQD elevado)": "NQ",
-    "Outro / Não classificado": "NQ"
-}
+# --- INICIALIZAÇÃO DINÂMICA DA SESSÃO ---
+if 'itens_sondagem' not in st.session_state:
+    st.session_state['itens_sondagem'] = []
 
-# --- INICIALIZAÇÃO SEGURA DA SESSÃO ---
-if 'itens_sondagem' not in st.session_state or not st.session_state['itens_sondagem']:
-    st.session_state['itens_sondagem'] = [
-        {"Item": 1, "Horário": "07:00 - 08:15", "De (m)": 0.00, "Até (m)": 1.50, "Avanço (m)": 1.50, "Acumulado (m)": 1.50, "Recup. (m)": 1.45, "Recup. (%)": 96.7, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Troca de Broca", "Descrição Litológica / Observações": "Início do furo HQ. Solo de alteração/ saprolito."},
-        {"Item": 2, "Horário": "08:15 - 09:30", "De (m)": 1.50, "Até (m)": 3.00, "Avanço (m)": 1.50, "Acumulado (m)": 3.00, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Saprolito avermelhado com fragmentos de quartzo."},
-        {"Item": 3, "Horário": "09:30 - 11:00", "De (m)": 3.00, "Até (m)": 6.00, "Avanço (m)": 3.00, "Acumulado (m)": 6.00, "Recup. (m)": 2.85, "Recup. (%)": 95.0, "Nº Cx": "02", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Passagem para rocha alterada (Xisto friável)."},
-        {"Item": 4, "Horário": "11:00 - 12:00", "De (m)": 6.00, "Até (m)": 7.50, "Avanço (m)": 1.50, "Acumulado (m)": 7.50, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "02", "Parado": 1.0, "Motivo Parada": "Manutenção Mecânica", "Descrição Litológica / Observações": "Ajuste na bomba de lama / VAZAMENTO."},
-        {"Item": 5, "Horário": "13:00 - 14:30", "De (m)": 7.50, "Até (m)": 10.50, "Avanço (m)": 3.00, "Acumulado (m)": 10.50, "Recup. (m)": 2.95, "Recup. (%)": 98.3, "Nº Cx": "03", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Rocha sã (Gnaisse cinza médio). Transição NQ."},
-        {"Item": 6, "Horário": "14:30 - 15:45", "De (m)": 10.50, "Até (m)": 13.50, "Avanço (m)": 3.00, "Acumulado (m)": 13.50, "Recup. (m)": 3.00, "Recup. (%)": 100.0, "Nº Cx": "03", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Rocha sã maciça, excelente RQD."},
-        {"Item": 7, "Horário": "15:45 - 16:30", "De (m)": 13.50, "Até (m)": 15.00, "Avanço (m)": 1.50, "Acumulado (m)": 15.00, "Recup. (m)": 1.48, "Recup. (%)": 98.7, "Nº Cx": "04", "Parado": 0.5, "Motivo Parada": "Aguardando Água", "Descrição Litológica / Observações": "Caminhão pipa em reabastecimento."},
-        {"Item": 8, "Horário": "16:30 - 17:30", "De (m)": 15.00, "Até (m)": 18.00, "Avanço (m)": 3.00, "Acumulado (m)": 18.00, "Recup. (m)": 2.55, "Recup. (%)": 85.0, "Nº Cx": "04", "Parado": 1.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Fim do turno. Preservação do testemunho."}
-    ]
+st.title("⛏️ DRILLDATA — Sistema Digital de Sondagem Mineral")
+st.markdown("---")
 
-# --- 1. CABEÇALHO DO PROJETO ---
+# --- 1. CABEÇALHO DO PROJETO & EQUIPE TÉCNICA ---
 st.header("1. Cabeçalho do Projeto & Equipe Técnica")
 
 col_logo, col_gest = st.columns([1, 3])
@@ -75,17 +59,16 @@ with col_gest:
 
 col_f1, col_f2, col_f3 = st.columns(3)
 with col_f1:
-    data_rel = st.date_input("Data", value=datetime(2026, 8, 17))
+    data_rel = st.date_input("Data", value=datetime.now())
 with col_f2:
     turno = st.selectbox("Turno", ["Diurno", "Noturno"])
 with col_f3:
-    ult_cx = st.text_input("Última Caixa", value="Nº 04")
-    diesel_input = st.number_input("Consumo Total Diesel (L)", value=105)
+    diesel_input = st.number_input("Consumo Total Diesel (L)", value=105, step=5)
 
 st.markdown("---")
 
-# --- 2. REGISTRO DE MANOBRAS ---
-st.header("2. Registro de Manobras e Operações")
+# --- 2. REGISTRO DE MANOBRAS E REGISTRO FOTOGRÁFICO ---
+st.header("2. Registro de Manobra e Testemunho")
 
 itens = st.session_state['itens_sondagem']
 prox_de = itens[-1]['Até (m)'] if itens else 0.0
@@ -97,7 +80,7 @@ with col_m1:
 with col_m2:
     ate = st.number_input("Até (m)", value=float(prox_ate), step=0.5, format="%.2f")
 with col_m3:
-    rec = st.number_input("Recup. (m)", value=round(ate - de, 2), step=0.1, format="%.2f")
+    rec = st.number_input("Recup. (m)", value=round(max(0.0, ate - de), 2), step=0.1, format="%.2f")
 with col_m4:
     num_caixa_str = st.text_input("Nº da Caixa", value=itens[-1]['Nº Cx'] if itens else "01")
 with col_m5:
@@ -109,7 +92,22 @@ with col_h1:
 with col_h2:
     motivo_parada = st.text_input("Motivo Parada", value="Nenhuma")
 with col_l1:
-    litologia_obs = st.text_input("Descrição Litológica / Observações", value="Rocha sã maciça.")
+    litologia_obs = st.text_input("Descrição Litológica / Observações", value="Solo de alteração / saprolito.")
+
+# Registro Fotográfico da Manobra / Caixa
+st.subheader("📷 Registro Fotográfico da Manobra")
+aba_cam, aba_up = st.tabs(["📸 Tirar Foto Agora", "📁 Carregar da Galeria"])
+
+img_capturada = None
+with aba_cam:
+    foto_cam = st.camera_input("Tirar foto da caixa/testemunho")
+    if foto_cam:
+        img_capturada = Image.open(foto_cam)
+
+with aba_up:
+    foto_file = st.file_uploader("Selecione uma imagem", type=['jpg', 'jpeg', 'png'], key="uploader_manobra")
+    if foto_file and not img_capturada:
+        img_capturada = Image.open(foto_file)
 
 col_btn1, col_btn2 = st.columns([1, 4])
 with col_btn1:
@@ -137,9 +135,10 @@ if btn_adicionar:
             "Nº Cx": num_caixa_str,
             "Parado": horas_parado,
             "Motivo Parada": motivo_parada,
-            "Descrição Litológica / Observações": litologia_obs
+            "Descrição Litológica / Observações": litologia_obs,
+            "Foto": img_capturada
         })
-        st.success("✅ Manobra adicionada!")
+        st.success("✅ Manobra registrada com sucesso!")
         st.rerun()
 
 if btn_remover and st.session_state['itens_sondagem']:
@@ -147,18 +146,32 @@ if btn_remover and st.session_state['itens_sondagem']:
     st.warning("🗑️ Última manobra removida.")
     st.rerun()
 
-# --- DATAFRAME DA TABELA ---
+# --- DATAFRAME & CÁLCULOS DINÂMICOS ---
 df = pd.DataFrame(st.session_state['itens_sondagem'])
-progresso_total = df['Avanço (m)'].sum() if not df.empty else 0.0
-recup_tot_m = df['Recup. (m)'].sum() if not df.empty else 0.0
-media_rec = round(df['Recup. (%)'].mean(), 1) if not df.empty else 0.0
-total_paradas = df['Parado'].sum() if not df.empty else 0.0
+
+if not df.empty:
+    progresso_total = df['Avanço (m)'].sum()
+    recup_tot_m = df['Recup. (m)'].sum()
+    media_rec = round(df['Recup. (%)'].mean(), 1)
+    total_paradas = df['Parado'].sum()
+    ult_cx = df['Nº Cx'].iloc[-1]
+else:
+    progresso_total = 0.0
+    recup_tot_m = 0.0
+    media_rec = 0.0
+    total_paradas = 0.0
+    ult_cx = "N/A"
 
 st.markdown("---")
-st.dataframe(df, use_container_width=True, hide_index=True)
+st.subheader("📋 Tabela do Boletim Diário")
+if not df.empty:
+    df_exibicao = df.drop(columns=['Foto'], errors='ignore')
+    st.dataframe(df_exibicao, use_container_width=True, hide_index=True)
+else:
+    st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
 
 # ==========================================
-# GERAÇÃO DO PDF
+# GERAÇÃO DO PDF EXATO
 # ==========================================
 class DrillDataCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -234,7 +247,7 @@ t_h_left.setStyle(TableStyle([
 meta_grid = [
     [Paragraph("<b>Projeto/Cliente:</b> " + cliente, st_meta_lbl), Paragraph("<b>Furo:</b> " + furo_id, st_meta_lbl), Paragraph("<b>Data:</b> " + data_rel.strftime('%d/%m/%Y'), st_meta_lbl)],
     [Paragraph("<b>Sonda:</b> " + sonda, st_meta_lbl), Paragraph("<b>Inclin./Azimute:</b> " + inclin_azim, st_meta_lbl), Paragraph("<b>Turno:</b> " + turno, st_meta_lbl)],
-    [Paragraph("<b>Sondador Responsável:</b> " + sondador, st_meta_lbl), Paragraph("<b>Coordenadas:</b> " + coords, st_meta_lbl), Paragraph("<b>Última Caixa:</b> " + ult_cx, st_meta_lbl)]
+    [Paragraph("<b>Sondador Responsável:</b> " + sondador, st_meta_lbl), Paragraph("<b>Coordenadas:</b> " + coords, st_meta_lbl), Paragraph("<b>Última Caixa:</b> " + str(ult_cx), st_meta_lbl)]
 ]
 t_h_right = Table(meta_grid, colWidths=[6.3*cm, 6.3*cm, 6.1*cm])
 t_h_right.setStyle(TableStyle([
@@ -289,22 +302,23 @@ pdf_table = [[
     Paragraph("Nº Cx", st_th), Paragraph("Parado", st_th), Paragraph("Motivo Parada", st_th), Paragraph("Descrição Litológica / Observações", st_th)
 ]]
 
-for _, r in df.iterrows():
-    pdf_table.append([
-        Paragraph(str(r['Item']), st_td), Paragraph(r['Horário'], st_td),
-        Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
-        Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
-        Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
-        Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td),
-        Paragraph(r['Motivo Parada'], st_td_left), Paragraph(r['Descrição Litológica / Observações'], st_td_left)
-    ])
+if not df.empty:
+    for _, r in df.iterrows():
+        pdf_table.append([
+            Paragraph(str(r['Item']), st_td), Paragraph(r['Horário'], st_td),
+            Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
+            Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
+            Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
+            Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td),
+            Paragraph(r['Motivo Parada'], st_td_left), Paragraph(r['Descrição Litológica / Observações'], st_td_left)
+        ])
 
 pdf_table.append([
     Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
-    Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{df['Acumulado (m)'].max() if not df.empty else 0.0:.2f} m</b>".replace('.', ','), st_td),
+    Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
     Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
     Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
-    Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo finalizado no turno com alta recuperação.", st_td_left)
+    Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo em andamento/finalizado.", st_td_left)
 ])
 
 col_widths = [0.8*cm, 2.1*cm, 1.3*cm, 1.3*cm, 1.6*cm, 1.8*cm, 1.6*cm, 1.6*cm, 1.1*cm, 1.2*cm, 3.2*cm, 10.5*cm]
@@ -320,9 +334,53 @@ t_main.setStyle(TableStyle([
     ('LINEBELOW', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
 ]))
 elements.append(t_main)
-elements.append(Spacer(1, 18))
+elements.append(Spacer(1, 12))
 
-# 4. ASSINATURAS
+# 4. REGISTRO FOTOGRÁFICO NO PDF
+fotos_para_pdf = [item for item in st.session_state['itens_sondagem'] if item.get('Foto') is not None]
+
+if fotos_para_pdf:
+    elements.append(Paragraph("<b>REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS</b>", ParagraphStyle('H_Foto', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#0F172A'))))
+    elements.append(Spacer(1, 4))
+    
+    foto_rows = []
+    current_row = []
+    
+    for idx, item in enumerate(fotos_para_pdf):
+        img_buffer = io.BytesIO()
+        item['Foto'].convert('RGB').save(img_buffer, format='JPEG')
+        img_buffer.seek(0)
+        
+        rl_img = RLImage(img_buffer, width=8.5*cm, height=4.5*cm)
+        caption = Paragraph(f"<b>Manobra {item['Item']}</b>: {item['De (m)']}m - {item['Até (m)']}m | Caixa {item['Nº Cx']}", st_td)
+        
+        cell_table = Table([[rl_img], [caption]], colWidths=[8.5*cm])
+        cell_table.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2)
+        ]))
+        
+        current_row.append(cell_table)
+        
+        if len(current_row) == 3 or idx == len(fotos_para_pdf) - 1:
+            while len(current_row) < 3:
+                current_row.append("")
+            foto_rows.append(current_row)
+            current_row = []
+            
+    grid_fotos = Table(foto_rows, colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
+    grid_fotos.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('LEFTPADDING', (0,0), (-1,-1), 2),
+        ('RIGHTPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+    ]))
+    elements.append(KeepTogether([grid_fotos]))
+    elements.append(Spacer(1, 12))
+
+# 5. ASSINATURAS
 st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
 st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
 
@@ -338,7 +396,7 @@ elements.append(KeepTogether(ass_table))
 doc.build(elements, canvasmaker=DrillDataCanvas)
 
 st.download_button(
-    "📄 Baixar Relatório PDF (.pdf)",
+    "📄 Baixar Relatório PDF Atualizado (.pdf)",
     data=buf_pdf.getvalue(),
     file_name=f"Relatorio_DrillData_{furo_id}.pdf",
     mime="application/pdf",
