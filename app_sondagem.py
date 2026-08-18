@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import io
 from datetime import datetime
@@ -30,6 +31,47 @@ st.markdown("""
 # --- INICIALIZAÇÃO DA SESSÃO ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = []
+
+if 'auto_lat' not in st.session_state:
+    st.session_state['auto_lat'] = -6.515831
+if 'auto_long' not in st.session_state:
+    st.session_state['auto_long'] = -36.344525
+
+# --- SCRIPT DE GEOLOCALIZAÇÃO AUTOMÁTICA EM TEMPO REAL ---
+# Tenta obter a localização via GPS/Navegador e atualiza os parâmetros na URL
+loc_html = """
+<script>
+if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const urlParams = new URLSearchParams(window.parent.location.search);
+        
+        if (urlParams.get('lat') !== lat.toString() || urlParams.get('lon') !== lon.toString()) {
+            urlParams.set('lat', lat);
+            urlParams.set('lon', lon);
+            window.parent.location.search = urlParams.toString();
+        }
+    }, function(error) {
+        console.log("Erro na geolocalização: " + error.message);
+    }, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0
+    });
+}
+</script>
+"""
+components.html(loc_html, height=0, width=0)
+
+# Atualiza na sessão se vier pela URL
+query_params = st.query_params
+if 'lat' in query_params and 'lon' in query_params:
+    try:
+        st.session_state['auto_lat'] = float(query_params['lat'])
+        st.session_state['auto_long'] = float(query_params['lon'])
+    except ValueError:
+        pass
 
 st.title("⛏️ DRILLDATA — Sistema Digital de Sondagem Mineral")
 st.markdown("---")
@@ -66,11 +108,11 @@ with col_p3:
     diesel_input = st.number_input("Consumo Total Diesel (L)", value=0, step=5)
 
 # Seção de Coordenadas e Detalhes
-with st.expander("🌐 Coordenadas GPS e Mapa do Furo", expanded=True):
+with st.expander("🌐 Coordenadas GPS Automáticas e Detalhes do Furo", expanded=True):
     col_c1, col_c2, col_c3, col_c4 = st.columns(4)
     with col_c1:
-        latitude = st.number_input("Latitude", value=-6.515831, format="%.6f")
-        longitude = st.number_input("Longitude", value=-36.344525, format="%.6f")
+        latitude = st.number_input("Latitude (Capturada do GPS)", value=st.session_state['auto_lat'], format="%.6f")
+        longitude = st.number_input("Longitude (Capturada do GPS)", value=st.session_state['auto_long'], format="%.6f")
     with col_c2:
         datum = st.text_input("Datum", value="SIRGAS 2000")
         inclinacao = st.number_input("Inclinação (°)", value=-90.0, step=1.0, format="%.1f")
@@ -239,7 +281,7 @@ st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8
 st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
 st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
-# 1. LOGO DINÂMICA / CABEÇALHO SUPERIOR (PDF)
+# LOGO DINÂMICA
 if img_logo_pil:
     logo_buf = io.BytesIO()
     img_logo_pil.convert("RGB").save(logo_buf, format="JPEG")
@@ -269,7 +311,7 @@ t_h_left.setStyle(TableStyle([
 
 meta_grid = [
     [Paragraph(f"<b>Empresa:</b> {empresa}", st_meta_lbl), Paragraph(f"<b>Furo:</b> {furo_id}", st_meta_lbl), Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m')} a {dt_termino.strftime('%d/%m/%Y')}", st_meta_lbl)],
-    [Paragraph(f"<b>Projeto:</b> {nome_projeto}", st_meta_lbl), Paragraph(f"<b>Diâmetro:</b> {diametro}", st_meta_lbl), Paragraph(f"<b>Coordenadas:</b> Lat: {latitude:.4f} | Long: {longitude:.4f}", st_meta_lbl)],
+    [Paragraph(f"<b>Projeto:</b> {nome_projeto}", st_meta_lbl), Paragraph(f"<b>Diâmetro:</b> {diametro}", st_meta_lbl), Paragraph(f"<b>Coordenadas:</b> Lat: {latitude:.6f} | Long: {longitude:.6f}", st_meta_lbl)],
     [Paragraph(f"<b>Coord./Geól.:</b> {coordenador} / {geologo}", st_meta_lbl), Paragraph(f"<b>Inclin./Azim.:</b> {inclinacao}° / {azimute}°", st_meta_lbl), Paragraph(f"<b>Sondador:</b> {sondador_equipe}", st_meta_lbl)]
 ]
 t_h_right = Table(meta_grid, colWidths=[6.3*cm, 6.3*cm, 6.1*cm])
@@ -419,7 +461,7 @@ elements.append(KeepTogether(ass_table))
 doc.build(elements, canvasmaker=DrillDataCanvas)
 
 st.download_button(
-    "📄 Baixar Relatório PDF (.pdf)",
+    "📄 Baixar Relatório PDF Atualizado (.pdf)",
     data=buf_pdf.getvalue(),
     file_name=f"Relatorio_DrillData_{furo_id if furo_id else 'Sondagem'}.pdf",
     mime="application/pdf",
