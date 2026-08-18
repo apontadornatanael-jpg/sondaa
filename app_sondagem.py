@@ -239,13 +239,21 @@ st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8
 st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
 st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
-# 1. CABEÇALHO SUPERIOR (PDF)
+# 1. LOGO DINÂMICA / CABEÇALHO SUPERIOR (PDF)
+if img_logo_pil:
+    logo_buf = io.BytesIO()
+    img_logo_pil.convert("RGB").save(logo_buf, format="JPEG")
+    logo_buf.seek(0)
+    logo_element = RLImage(logo_buf, width=1.5*cm, height=1.1*cm)
+else:
+    logo_element = draw_drilldata_logo()
+
 h_text_cell = [
     Paragraph("<b>DRILLDATA</b>", st_title),
     Paragraph("Relatório Técnico & Boletim Diário de Sondagem", st_subtitle)
 ]
 
-header_left_box = Table([[draw_drilldata_logo(), h_text_cell]], colWidths=[0.9*cm, 8.3*cm])
+header_left_box = Table([[logo_element, h_text_cell]], colWidths=[1.7*cm, 7.5*cm])
 header_left_box.setStyle(TableStyle([
     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ('LEFTPADDING', (0,0), (-1,-1), 0),
@@ -255,7 +263,7 @@ header_left_box.setStyle(TableStyle([
 t_h_left = Table([[header_left_box]], colWidths=[9.4*cm])
 t_h_left.setStyle(TableStyle([
     ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-    ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+    ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
     ('LEFTPADDING', (0,0), (-1,-1), 8),
 ]))
 
@@ -411,7 +419,7 @@ elements.append(KeepTogether(ass_table))
 doc.build(elements, canvasmaker=DrillDataCanvas)
 
 st.download_button(
-    "📄 Baixar Relatório PDF Atualizado (.pdf)",
+    "📄 Baixar Relatório PDF (.pdf)",
     data=buf_pdf.getvalue(),
     file_name=f"Relatorio_DrillData_{furo_id if furo_id else 'Sondagem'}.pdf",
     mime="application/pdf",
