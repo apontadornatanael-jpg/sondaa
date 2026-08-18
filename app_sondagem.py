@@ -1,28 +1,25 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 import io
 from datetime import datetime
-from PIL import Image
 
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-from openpyxl.drawing.image import Image as OpenpyxlImage
 
-# ReportLab para geração do PDF no padrão DrillData
+# ReportLab para geração do PDF exato DrillData
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, KeepTogether
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 
 # --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
-st.set_page_config(page_title="DrillData - Boletim Diário de Sondagem", layout="wide")
+st.set_page_config(page_title="DrillData - Relatório de Sondagem", layout="wide")
 
-# Ocultar elementos padrão do Streamlit Cloud
-ocultar_elementos = """
+# Ocultar menus e ajustar margins do Streamlit Cloud
+st.markdown("""
     <style>
     #MainMenu {visibility: hidden !important;}
     header {visibility: hidden !important;}
@@ -32,246 +29,210 @@ ocultar_elementos = """
     button[title="Manage app"] {display: none !important;}
     .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
     </style>
-"""
-st.markdown(ocultar_elementos, unsafe_allow_html=True)
-
-# Estilização no padrão Verde DrillData
-st.markdown("""
-    <style>
-    h1 {
-        color: #065F46 !important;
-        background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
-        padding: 16px 20px;
-        border-radius: 12px;
-        border-left: 6px solid #059669;
-        font-weight: 800 !important;
-    }
-    h2, h3 { color: #047857 !important; font-weight: 700 !important; }
-    .stButton > button {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 8px !important;
-        padding: 10px 24px !important;
-        font-weight: 700 !important;
-    }
-    </style>
 """, unsafe_allow_html=True)
 
-# --- SESSÃO E DADOS INICIAIS ---
+# --- DADOS DO BOLETIM (IGUAL AO PDF) ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = [
-        {"Item": 1, "Horário": "07:00 - 08:15", "De (m)": 0.00, "Até (m)": 1.50, "Avanço (m)": 1.50, "Acumulado (m)": 1.50, "Recup. (m)": 1.45, "Recup. (%)": 96.7, "Nº Cx": "01", "Parado (h)": 0.0, "Motivo Parada": "Troca de Broca", "Descrição Litológica / Observações": "Início do furo HQ. Solo de alteração/ saprolito."},
-        {"Item": 2, "Horário": "08:15 - 09:30", "De (m)": 1.50, "Até (m)": 3.00, "Avanço (m)": 1.50, "Acumulado (m)": 3.00, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "01", "Parado (h)": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Saprolito avermelhado com fragmentos de quartzo."},
-        {"Item": 3, "Horário": "09:30 - 11:00", "De (m)": 3.00, "Até (m)": 6.00, "Avanço (m)": 3.00, "Acumulado (m)": 6.00, "Recup. (m)": 2.85, "Recup. (%)": 95.0, "Nº Cx": "02", "Parado (h)": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Passagem para rocha alterada (Xisto friável)."},
-        {"Item": 4, "Horário": "11:00 - 12:00", "De (m)": 6.00, "Até (m)": 7.50, "Avanço (m)": 1.50, "Acumulado (m)": 7.50, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "02", "Parado (h)": 1.0, "Motivo Parada": "Manutenção Mecânica", "Descrição Litológica / Observações": "Ajuste na bomba de lama / VAZAMENTO."},
-        {"Item": 5, "Horário": "13:00 - 14:30", "De (m)": 7.50, "Até (m)": 10.50, "Avanço (m)": 3.00, "Acumulado (m)": 10.50, "Recup. (m)": 2.95, "Recup. (%)": 98.3, "Nº Cx": "03", "Parado (h)": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Rocha sã (Gnaisse cinza médio). Transição NQ."},
-        {"Item": 6, "Horário": "14:30 - 15:45", "De (m)": 10.50, "Até (m)": 13.50, "Avanço (m)": 3.00, "Acumulado (m)": 13.50, "Recup. (m)": 3.00, "Recup. (%)": 100.0, "Nº Cx": "03", "Parado (h)": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Rocha sã maciça, excelente RQD."},
-        {"Item": 7, "Horário": "15:45 - 16:30", "De (m)": 13.50, "Até (m)": 15.00, "Avanço (m)": 1.50, "Acumulado (m)": 15.00, "Recup. (m)": 1.48, "Recup. (%)": 98.7, "Nº Cx": "04", "Parado (h)": 0.5, "Motivo Parada": "Aguardando Água", "Descrição Litológica / Observações": "Caminhão pipa em reabastecimento."},
-        {"Item": 8, "Horário": "16:30 - 17:30", "De (m)": 15.00, "Até (m)": 18.00, "Avanço (m)": 3.00, "Acumulado (m)": 18.00, "Recup. (m)": 3.00, "Recup. (%)": 100.0, "Nº Cx": "04", "Parado (h)": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Fim do turno. Preservação do testemunho."}
+        {"Item": 1, "Horário": "07:00 - 08:15", "De (m)": 0.00, "Até (m)": 1.50, "Avanço (m)": 1.50, "Acumulado (m)": 1.50, "Recup. (m)": 1.45, "Recup. (%)": 96.7, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Troca de Broca", "Descrição Litológica / Observações": "Início do furo HQ. Solo de alteração/ saprolito."},
+        {"Item": 2, "Horário": "08:15 - 09:30", "De (m)": 1.50, "Até (m)": 3.00, "Avanço (m)": 1.50, "Acumulado (m)": 3.00, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Saprolito avermelhado com fragmentos de quartzo."},
+        {"Item": 3, "Horário": "09:30 - 11:00", "De (m)": 3.00, "Até (m)": 6.00, "Avanço (m)": 3.00, "Acumulado (m)": 6.00, "Recup. (m)": 2.85, "Recup. (%)": 95.0, "Nº Cx": "02", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Passagem para rocha alterada (Xisto friável)."},
+        {"Item": 4, "Horário": "11:00 - 12:00", "De (m)": 6.00, "Até (m)": 7.50, "Avanço (m)": 1.50, "Acumulado (m)": 7.50, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "02", "Parado": 1.0, "Motivo Parada": "Manutenção Mecânica", "Descrição Litológica / Observações": "Ajuste na bomba de lama / VAZAMENTO."},
+        {"Item": 5, "Horário": "13:00 - 14:30", "De (m)": 7.50, "Até (m)": 10.50, "Avanço (m)": 3.00, "Acumulado (m)": 10.50, "Recup. (m)": 2.95, "Recup. (%)": 98.3, "Nº Cx": "03", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Rocha sã (Gnaisse cinza médio). Transição NQ."},
+        {"Item": 6, "Horário": "14:30 - 15:45", "De (m)": 10.50, "Até (m)": 13.50, "Avanço (m)": 3.00, "Acumulado (m)": 13.50, "Recup. (m)": 3.00, "Recup. (%)": 100.0, "Nº Cx": "03", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Rocha sã maciça, excelente RQD."},
+        {"Item": 7, "Horário": "15:45 - 16:30", "De (m)": 13.50, "Até (m)": 15.00, "Avanço (m)": 1.50, "Acumulado (m)": 15.00, "Recup. (m)": 1.48, "Recup. (%)": 98.7, "Nº Cx": "04", "Parado": 0.5, "Motivo Parada": "Aguardando Água", "Descrição Litológica / Observações": "Caminhão pipa em reabastecimento."},
+        {"Item": 8, "Horário": "16:30 - 17:30", "De (m)": 15.00, "Até (m)": 18.00, "Avanço (m)": 3.00, "Acumulado (m)": 18.00, "Recup. (m)": 3.00, "Recup. (%)": 100.0, "Nº Cx": "04", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Fim do turno. Preservação do testemunho."}
     ]
 
 st.title("⛏️ DRILLDATA — Sistema Digital de Sondagem Mineral")
 st.markdown("---")
 
-# --- 1. CABEÇALHO DO RELATÓRIO ---
-st.header("1. Cabeçalho do Projeto & Equipamento")
+# Metadados configuráveis
+c_m1, c_m2, c_m3 = st.columns(3)
+with c_m1:
+    cliente = st.text_input("Projeto/Cliente", value="Mineração Santa Rita")
+    sonda = st.text_input("Sonda", value="CS14 Core Drill")
+    sondador = st.text_input("Sondador Responsável", value="Natanael Souza")
+with c_m2:
+    furo_id = st.text_input("Furo", value="DDH-024")
+    inclin_azim = st.text_input("Inclin./Azimute", value="-60° / 180°")
+    coords = st.text_input("Coordenadas", value="E: 245120 | N: 9284100")
+with c_m3:
+    data_rel = st.date_input("Data", value=datetime(2026, 8, 17))
+    turno = st.selectbox("Turno", ["Diurno", "Noturno"])
+    ult_cx = st.text_input("Última Caixa", value="Nº 04")
+    diesel_input = st.number_input("Consumo Total Diesel (L)", value=105)
 
-c_l1, c_l2 = st.columns([1, 4])
-with c_l1:
-    logo_up = st.file_uploader("Logo da Empresa", type=['png', 'jpg', 'jpeg'])
-    img_logo = Image.open(logo_up) if logo_up else None
-with c_l2:
-    g1, g2, g3 = st.columns(3)
-    with g1:
-        cliente = st.text_input("Projeto/Cliente", value="Mineração Santa Rita")
-        furo_id = st.text_input("Furo", value="DDH-024")
-        data_rel = st.date_input("Data", value=datetime(2026, 8, 17))
-    with g2:
-        sonda = st.text_input("Sonda", value="CS14 Core Drill")
-        inclin_azim = st.text_input("Inclin. / Azimute", value="-60° / 180°")
-        turno = st.selectbox("Turno", ["Diurno", "Noturno"])
-    with g3:
-        sondador = st.text_input("Sondador Responsável", value="Natanael Souza")
-        coords = st.text_input("Coordenadas", value="E: 245120 | N: 9284100")
-        ult_cx = st.text_input("Última Caixa", value="Nº 04")
-
-st.markdown("---")
-
-# --- 2. ENTRADA DE MANOBRAS ---
-st.header("2. Registro Operacional do Turno")
-
-c1, c2, c3, c4, c5 = st.columns(5)
-with c1:
-    h_inicio = st.time_input("Hora Início", value=datetime.strptime("07:00", "%H:%M").time())
-    h_fim = st.time_input("Hora Fim", value=datetime.strptime("08:15", "%H:%M").time())
-with c2:
-    de_m = st.number_input("De (m)", value=0.00, step=0.5, format="%.2f")
-    ate_m = st.number_input("Até (m)", value=1.50, step=0.5, format="%.2f")
-with c3:
-    rec_m = st.number_input("Recup. (m)", value=1.45, step=0.01, format="%.2f")
-    cx_num = st.text_input("Nº Caixa", value="01")
-with c4:
-    parado_h = st.number_input("Horas Parado (h)", value=0.0, step=0.5)
-    motivo = st.text_input("Motivo Parada", value="Nenhuma")
-with c5:
-    diesel_input = st.number_input("Consumo Diesel Turno (L)", value=105, step=5)
-
-obs_lito = st.text_area("Descrição Litológica / Observações", value="Início do furo HQ. Solo de alteração/ saprolito.")
-
-if st.button("➕ Adicionar Registro ao Boletim"):
-    avanco = round(ate_m - de_m, 2)
-    rec_pct = round((rec_m / avanco) * 100, 1) if avanco > 0 else 0.0
-    item_n = len(st.session_state['itens_sondagem']) + 1
-    acum = (st.session_state['itens_sondagem'][-1]['Acumulado (m)'] if st.session_state['itens_sondagem'] else 0.0) + avanco
-    
-    st.session_state['itens_sondagem'].append({
-        "Item": item_n,
-        "Horário": f"{h_inicio.strftime('%H:%M')} - {h_fim.strftime('%H:%M')}",
-        "De (m)": de_m, "Até (m)": ate_m, "Avanço (m)": avanco,
-        "Acumulado (m)": acum, "Recup. (m)": rec_m, "Recup. (%)": rec_pct,
-        "Nº Cx": cx_num, "Parado (h)": parado_h, "Motivo Parada": motivo,
-        "Descrição Litológica / Observações": obs_lito
-    })
-    st.success("Item adicionado com sucesso!")
-    st.rerun()
-
-st.markdown("---")
-
-# --- 3. EXIBIÇÃO E KPIS ---
 df = pd.DataFrame(st.session_state['itens_sondagem'])
-
 progresso_total = df['Avanço (m)'].sum()
 media_rec = df['Recup. (%)'].mean()
-total_paradas = df['Parado (h)'].sum()
+total_paradas = df['Parado'].sum()
 
-st.header("3. Resumo Diário & Tabela do Boletim")
-
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m")
-k2.metric("MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %")
-k3.metric("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h")
-k4.metric("CONSUMO TOTAL DIESEL", f"{diesel_input} L")
-
+st.markdown("---")
+st.subheader("Pré-visualização dos Dados")
 st.dataframe(df, use_container_width=True, hide_index=True)
 
-# --- 4. EXPORTAÇÕES (EXCEL E PDF DRILLDATA) ---
-col_ex1, col_ex2 = st.columns(2)
+# --- BOTÕES DE GERAMENTO ---
+col_dl1, col_dl2 = st.columns(2)
 
-# --- GERADOR DE EXCEL (DRILLDATA FORMAT) ---
-with col_ex1:
-    buffer_xls = io.BytesIO()
+# ==========================================
+# 1. GERADOR DO EXCEL 100% IDÊNTICO AO PDF
+# ==========================================
+with col_dl1:
+    buf_excel = io.BytesIO()
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Boletim DrillData"
+    ws.title = "Boletim Diário"
     ws.views.sheetView[0].showGridLines = True
 
-    # Estilos
-    f_tit = Font(name='Arial', size=12, bold=True, color='065F46')
-    f_sub = Font(name='Arial', size=9, bold=True, color='1F2937')
-    f_head = Font(name='Arial', size=8, bold=True, color='FFFFFF')
-    f_body = Font(name='Arial', size=8)
-    f_tot = Font(name='Arial', size=8, bold=True, color='000000')
+    # Cores FIÉIS AO PDF
+    C_HEADER_BG = "0F172A"      # Azul Escuro / Grafite
+    C_HEADER_FG = "FFFFFF"      # Branco
+    C_GREEN_TEXT = "059669"     # Verde Recuperação
+    C_TOT_BG = "E0F2FE"         # Azul Claro Linha de Totais
+    C_BORDER = "CBD5E1"         # Cinza Borda
 
-    fill_head = PatternFill('solid', fgColor='059669')
-    fill_tot = PatternFill('solid', fgColor='E5E7EB')
-    fill_kpi = PatternFill('solid', fgColor='ECFDF5')
+    font_hdr_title = Font(name="Calibri", size=14, bold=True, color="10B981")
+    font_hdr_sub = Font(name="Calibri", size=8, color="FFFFFF")
+    font_meta_lbl = Font(name="Calibri", size=8, bold=True, color="334155")
+    font_meta_val = Font(name="Calibri", size=8, color="0F172A")
+    font_th = Font(name="Calibri", size=8, bold=True, color=C_HEADER_FG)
+    font_td = Font(name="Calibri", size=8)
+    font_td_rec = Font(name="Calibri", size=8, bold=True, color=C_GREEN_TEXT)
+    font_tot = Font(name="Calibri", size=8, bold=True, color="0F172A")
 
-    border_thin = Border(left=Side(style='thin', color='CCCCCC'), right=Side(style='thin', color='CCCCCC'),
-                         top=Side(style='thin', color='CCCCCC'), bottom=Side(style='thin', color='CCCCCC'))
+    fill_hdr = PatternFill("solid", fgColor=C_HEADER_BG)
+    fill_th = PatternFill("solid", fgColor=C_HEADER_BG)
+    fill_tot = PatternFill("solid", fgColor=C_TOT_BG)
+    fill_kpi = PatternFill("solid", fgColor="F8FAFC")
 
-    al_center = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    al_left = Alignment(horizontal='left', vertical='center', wrap_text=True)
-    al_right = Alignment(horizontal='right', vertical='center')
+    border_thin = Border(left=Side(style='thin', color=C_BORDER), right=Side(style='thin', color=C_BORDER),
+                         top=Side(style='thin', color=C_BORDER), bottom=Side(style='thin', color=C_BORDER))
 
-    # Titulo
-    ws.merge_cells('A1:L1')
-    ws['A1'] = "DRILLDATA - Relatório Técnico & Boletim Diário de Sondagem"
-    ws['A1'].font = f_tit
-    ws['A1'].alignment = al_center
+    al_center = Alignment(horizontal="center", vertical="center")
+    al_left = Alignment(horizontal="left", vertical="center")
+    al_right = Alignment(horizontal="right", vertical="center")
 
-    # Metadados
-    meta = [
-        [f"Projeto/Cliente: {cliente}", f"Furo: {furo_id}", f"Data: {data_rel.strftime('%d/%m/%Y')}"],
-        [f"Sonda: {sonda}", f"Inclin./Azimute: {inclin_azim}", f"Turno: {turno}"],
-        [f"Sondador Resp.: {sondador}", f"Coordenadas: {coords}", f"Última Caixa: {ult_cx}"]
+    # A1:D3 - Header DrillData (Lado Esquerdo)
+    ws.merge_cells("A1:D3")
+    ws["A1"] = "⛏ DRILLDATA\nRelatório Técnico & Boletim Diário de Sondagem"
+    ws["A1"].font = font_hdr_title
+    ws["A1"].fill = fill_hdr
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    # E1:L3 - Metadados Grid (Lado Direito)
+    meta_structure = [
+        [("E1", "F1", f"Projeto/Cliente: {cliente}"), ("G1", "H1", f"Furo: {furo_id}"), ("I1", "L1", f"Data: {data_rel.strftime('%d/%m/%Y')}")],
+        [("E2", "F2", f"Sonda: {sonda}"), ("G2", "H2", f"Inclin./Azimute: {inclin_azim}"), ("I2", "L2", f"Turno: {turno}")],
+        [("E3", "F3", f"Sondador Responsável: {sondador}"), ("G3", "H3", f"Coordenadas: {coords}"), ("I3", "L3", f"Última Caixa: {ult_cx}")]
     ]
-    for r_idx, row in enumerate(meta, start=2):
-        ws.cell(row=r_idx, column=1, value=row[0]).font = f_sub
-        ws.cell(row=r_idx, column=5, value=row[1]).font = f_sub
-        ws.cell(row=r_idx, column=9, value=row[2]).font = f_sub
+    for row in meta_structure:
+        for m_start, m_end, val in row:
+            ws.merge_cells(f"{m_start}:{m_end}")
+            cell = ws[m_start]
+            cell.value = val
+            cell.font = font_meta_lbl
+            cell.alignment = al_left
+            cell.border = border_thin
 
-    # KPIs
-    ws.merge_cells('A6:C6'); ws['A6'] = f"PROGRESSO TOTAL: {progresso_total:.2f} m"
-    ws.merge_cells('D6:F6'); ws['D6'] = f"MÉDIA RECUPERAÇÃO: {media_rec:.1f} %"
-    ws.merge_cells('G6:I6'); ws['G6'] = f"TOTAL H. PARADAS: {total_paradas:.1f} h"
-    ws.merge_cells('J6:L6'); ws['J6'] = f"CONSUMO DIESEL: {diesel_input} L"
-    for c in range(1, 13):
-        ws.cell(row=6, column=c).fill = fill_kpi
-        ws.cell(row=6, column=c).font = f_sub
-        ws.cell(row=6, column=c).alignment = al_center
+    # Linha 5-6: CARDS DE KPI
+    kpis = [
+        ("A5:C5", "A6:C6", "PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "0284C7"),
+        ("D5:F5", "D6:F6", "MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %", "059669"),
+        ("G5:I5", "G6:I6", "TOTAL HORAS PARADAS", f"{total_paradas:.1f} h", "DC2626"),
+        ("J5:L5", "J6:L6", "CONSUMO TOTAL DIESEL", f"{diesel_input} L", "D97706")
+    ]
+    for top_m, bot_m, lbl, val, color_hex in kpis:
+        ws.merge_cells(top_m)
+        ws.merge_cells(bot_m)
+        top_cell = ws[top_m.split(":")[0]]
+        bot_cell = ws[bot_m.split(":")[0]]
+        
+        top_cell.value = lbl
+        top_cell.font = Font(name="Calibri", size=7, bold=True, color="64748B")
+        top_cell.fill = fill_kpi
+        top_cell.alignment = al_center
 
-    # Tabela Headers
+        bot_cell.value = val
+        bot_cell.font = Font(name="Calibri", size=12, bold=True, color=color_hex)
+        bot_cell.fill = fill_kpi
+        bot_cell.alignment = al_center
+
+    # Linha 8: Cabeçalhos da Tabela
     headers = ["Item", "Horário", "De (m)", "Até (m)", "Avanço (m)", "Acumulado (m)", "Recup. (m)", "Recup. (%)", "Nº Cx", "Parado", "Motivo Parada", "Descrição Litológica / Observações"]
-    ws.row_dimensions[8].height = 25
-    for c_idx, h in enumerate(headers, 1):
-        cell = ws.cell(row=8, column=c_idx, value=h)
-        cell.font = f_head
-        cell.fill = fill_head
+    ws.row_dimensions[8].height = 24
+    for c_idx, h_text in enumerate(headers, 1):
+        cell = ws.cell(row=8, column=c_idx, value=h_text)
+        cell.font = font_th
+        cell.fill = fill_th
         cell.alignment = al_center
         cell.border = border_thin
 
-    # Linhas
-    curr_r = 9
+    # Preenchimento de Dados
+    curr_row = 9
     for _, r in df.iterrows():
-        ws.cell(row=curr_r, column=1, value=r['Item']).alignment = al_center
-        ws.cell(row=curr_r, column=2, value=r['Horário']).alignment = al_center
-        ws.cell(row=curr_r, column=3, value=r['De (m)']).alignment = al_right
-        ws.cell(row=curr_r, column=4, value=r['Até (m)']).alignment = al_right
-        ws.cell(row=curr_r, column=5, value=r['Avanço (m)']).alignment = al_right
-        ws.cell(row=curr_r, column=6, value=r['Acumulado (m)']).alignment = al_right
-        ws.cell(row=curr_r, column=7, value=r['Recup. (m)']).alignment = al_right
-        ws.cell(row=curr_r, column=8, value=f"{r['Recup. (%)']:.1f}%").alignment = al_right
-        ws.cell(row=curr_r, column=9, value=r['Nº Cx']).alignment = al_center
-        ws.cell(row=curr_r, column=10, value=f"{r['Parado (h)']} h").alignment = al_center
-        ws.cell(row=curr_r, column=11, value=r['Motivo Parada']).alignment = al_left
-        ws.cell(row=curr_r, column=12, value=r['Descrição Litológica / Observações']).alignment = al_left
+        ws.cell(row=curr_row, column=1, value=r["Item"]).alignment = al_center
+        ws.cell(row=curr_row, column=2, value=r["Horário"]).alignment = al_center
+        ws.cell(row=curr_row, column=3, value=f"{r['De (m)']:.2f}".replace('.', ',')).alignment = al_right
+        ws.cell(row=curr_row, column=4, value=f"{r['Até (m)']:.2f}".replace('.', ',')).alignment = al_right
+        ws.cell(row=curr_row, column=5, value=f"{r['Avanço (m)']:.2f}".replace('.', ',')).alignment = al_right
+        ws.cell(row=curr_row, column=6, value=f"{r['Acumulado (m)']:.2f}".replace('.', ',')).alignment = al_right
+        ws.cell(row=curr_row, column=7, value=f"{r['Recup. (m)']:.2f}".replace('.', ',')).alignment = al_right
+        
+        # Recup (%) em Verde
+        cell_rec = ws.cell(row=curr_row, column=8, value=f"{r['Recup. (%)']:.1f}%".replace('.', ','))
+        cell_rec.alignment = al_right
+        cell_rec.font = font_td_rec
 
-        for c in range(1, 13):
-            ws.cell(row=curr_r, column=c).font = f_body
-            ws.cell(row=curr_r, column=c).border = border_thin
-        curr_r += 1
+        ws.cell(row=curr_row, column=9, value=r["Nº Cx"]).alignment = al_center
+        ws.cell(row=curr_row, column=10, value=f"{r['Parado']:.1f} h".replace('.', ',')).alignment = al_center
+        ws.cell(row=curr_row, column=11, value=r["Motivo Parada"]).alignment = al_left
+        ws.cell(row=curr_row, column=12, value=r["Descrição Litológica / Observações"]).alignment = al_left
 
-    # Totais
-    ws.cell(row=curr_r, column=1, value="TOTAIS / MÉDIAS:").font = f_tot
-    ws.cell(row=curr_r, column=5, value=progresso_total).font = f_tot
-    ws.cell(row=curr_r, column=6, value=df['Acumulado (m)'].max()).font = f_tot
-    ws.cell(row=curr_r, column=7, value=df['Recup. (m)'].sum()).font = f_tot
-    ws.cell(row=curr_r, column=8, value=f"{media_rec:.1f}%").font = f_tot
-    ws.cell(row=curr_r, column=10, value=f"{total_paradas:.1f} h").font = f_tot
-    ws.cell(row=curr_r, column=12, value=f"Diesel: {diesel_input} L").font = f_tot
+        for col_i in range(1, 13):
+            c_cell = ws.cell(row=curr_row, column=col_i)
+            if col_i != 8: c_cell.font = font_td
+            c_cell.border = border_thin
+        curr_row += 1
 
-    for c in range(1, 13):
-        ws.cell(row=curr_r, column=c).fill = fill_tot
-        ws.cell(row=curr_r, column=c).border = border_thin
+    # Linha de Totais / Médias
+    ws.cell(row=curr_row, column=1, value="TOTAIS / MÉDIAS OPERACIONAIS:").font = font_tot
+    ws.merge_cells(start_row=curr_row, start_column=1, end_row=curr_row, end_column=4)
+    ws.cell(row=curr_row, column=1).alignment = al_left
 
-    # Largura de colunas
-    for col in ws.columns:
-        col_letter = get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = 14
-    ws.column_dimensions['L'].width = 35
+    ws.cell(row=curr_row, column=5, value=f"{progresso_total:.2f} m".replace('.', ',')).alignment = al_right
+    ws.cell(row=curr_row, column=6, value=f"{df['Acumulado (m)'].max():.2f} m".replace('.', ',')).alignment = al_right
+    ws.cell(row=curr_row, column=7, value=f"{df['Recup. (m)'].sum():.2f} m".replace('.', ',')).alignment = al_right
+    ws.cell(row=curr_row, column=8, value=f"{media_rec:.1f}%".replace('.', ',')).alignment = al_right
+    ws.cell(row=curr_row, column=9, value=ult_cx).alignment = al_center
+    ws.cell(row=curr_row, column=10, value=f"{total_paradas:.1f} h".replace('.', ',')).alignment = al_center
+    ws.cell(row=curr_row, column=11, value=f"Diesel: {diesel_input} L").alignment = al_left
+    ws.cell(row=curr_row, column=12, value="Furo finalizado no turno com alta recuperação.").alignment = al_left
 
-    wb.save(buffer_xls)
+    for col_i in range(1, 13):
+        c_tot = ws.cell(row=curr_row, column=col_i)
+        c_tot.font = font_tot
+        c_tot.fill = fill_tot
+        c_tot.border = Border(top=Side(style='medium', color="0284C7"), bottom=Side(style='medium', color="0284C7"))
+
+    # Ajuste Larguras
+    widths = [6, 14, 10, 10, 11, 13, 11, 11, 8, 10, 22, 36]
+    for idx, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(idx)].width = w
+
+    wb.save(buf_excel)
     st.download_button(
-        "📊 Baixar Planilha Excel (.xlsx)",
-        data=buffer_xls.getvalue(),
+        "📊 Baixar Planilha Excel Identica (.xlsx)",
+        data=buf_excel.getvalue(),
         file_name=f"Boletim_DrillData_{furo_id}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
 
-# --- GERADOR DE PDF EXATO DRILLDATA (REPORTLAB) ---
-with col_ex2:
+# ==========================================
+# 2. GERADOR DO PDF 100% IDÊNTICO
+# ==========================================
+with col_dl2:
     class DrillDataCanvas(canvas.Canvas):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
@@ -286,129 +247,158 @@ with col_ex2:
             for state in self._saved_page_states:
                 self.__dict__.update(state)
                 self.setFont("Helvetica", 8)
-                self.setFillColor(colors.HexColor('#4B5563'))
-                self.drawString(1.5*cm, 1.0*cm, "DrillData — Sistema Digital de Sondagem Mineral")
-                self.drawRightString(28.2*cm, 1.0*cm, f"Página {self._pageNumber} de {num_pages}")
+                self.setFillColor(colors.HexColor('#64748B'))
+                self.drawString(1.2*cm, 0.8*cm, "DrillData — Sistema Digital de Sondagem Mineral")
+                self.drawRightString(28.5*cm, 0.8*cm, f"Página {self._pageNumber} de {num_pages}")
                 super().showPage()
             super().save()
 
-    pdf_buf = io.BytesIO()
+    buf_pdf = io.BytesIO()
     doc = SimpleDocTemplate(
-        pdf_buf, pagesize=landscape(A4),
-        leftMargin=1.2*cm, rightMargin=1.2*cm,
-        topMargin=1.2*cm, bottomMargin=1.5*cm
+        buf_pdf, pagesize=landscape(A4),
+        leftMargin=1.0*cm, rightMargin=1.0*cm,
+        topMargin=1.0*cm, bottomMargin=1.2*cm
     )
     elements = []
     styles = getSampleStyleSheet()
 
-    st_tit = ParagraphStyle('DocTit', fontName='Helvetica-Bold', fontSize=14, leading=16, textColor=colors.HexColor('#065F46'))
-    st_sub = ParagraphStyle('DocSub', fontName='Helvetica-Bold', fontSize=10, leading=12, textColor=colors.HexColor('#1F2937'))
-    st_meta_lbl = ParagraphStyle('MetaLbl', fontName='Helvetica-Bold', fontSize=7.5, leading=9, textColor=colors.HexColor('#374151'))
-    st_meta_val = ParagraphStyle('MetaVal', fontName='Helvetica', fontSize=7.5, leading=9, textColor=colors.HexColor('#111827'))
+    # Estilos de Texto do PDF
+    st_title = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.white)
+    st_subtitle = ParagraphStyle('H2', fontName='Helvetica', fontSize=7.5, leading=9, textColor=colors.HexColor('#94A3B8'))
     
-    st_kpi_num = ParagraphStyle('KpiNum', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=1, textColor=colors.HexColor('#065F46'))
-    st_kpi_lbl = ParagraphStyle('KpiLbl', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#4B5563'))
+    st_meta_lbl = ParagraphStyle('ML', fontName='Helvetica-Bold', fontSize=7, leading=8.5, textColor=colors.HexColor('#0F172A'))
+    st_meta_val = ParagraphStyle('MV', fontName='Helvetica', fontSize=7, leading=8.5, textColor=colors.HexColor('#334155'))
 
-    st_th = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=7, leading=8, alignment=1, textColor=colors.white)
-    st_td = ParagraphStyle('TD', fontName='Helvetica', fontSize=6.5, leading=8, alignment=1)
-    st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8, alignment=0)
+    st_kpi_lbl = ParagraphStyle('KL', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#475569'))
+    st_kpi_val = ParagraphStyle('KV', fontName='Helvetica-Bold', fontSize=12, leading=14, alignment=0)
 
-    # 1. Header DrillData
-    hdr_txt = f"<b>DRILLDATA</b><br/><font size=9 color='#047857'>Relatório Técnico & Boletim Diário de Sondagem</font>"
-    header_table = Table([[Paragraph(hdr_txt, st_tit)]], colWidths=[27.0*cm])
-    elements.append(header_table)
-    elements.append(Spacer(1, 4))
+    st_th = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.white)
+    st_td = ParagraphStyle('TD', fontName='Helvetica', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#0F172A'))
+    st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
+    st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
+    st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
-    # 2. Grid Metadados
-    meta_data = [
-        [Paragraph("<b>Projeto/Cliente:</b>", st_meta_lbl), Paragraph(cliente, st_meta_val), Paragraph("<b>Furo:</b>", st_meta_lbl), Paragraph(furo_id, st_meta_val), Paragraph("<b>Data:</b>", st_meta_lbl), Paragraph(data_rel.strftime('%d/%m/%Y'), st_meta_val)],
-        [Paragraph("<b>Sonda:</b>", st_meta_lbl), Paragraph(sonda, st_meta_val), Paragraph("<b>Inclin./Azimute:</b>", st_meta_lbl), Paragraph(inclin_azim, st_meta_val), Paragraph("<b>Turno:</b>", st_meta_lbl), Paragraph(turno, st_meta_val)],
-        [Paragraph("<b>Sondador Resp.:</b>", st_meta_lbl), Paragraph(sondador, st_meta_val), Paragraph("<b>Coordenadas:</b>", st_meta_lbl), Paragraph(coords, st_meta_val), Paragraph("<b>Última Caixa:</b>", st_meta_lbl), Paragraph(ult_cx, st_meta_val)]
+    # 1. BANNER CABEÇALHO
+    h_left = [
+        Paragraph("<b>⛏ DRILLDATA</b>", st_title),
+        Paragraph("Relatório Técnico & Boletim Diário de Sondagem", st_subtitle)
     ]
-    t_meta = Table(meta_data, colWidths=[2.5*cm, 6.5*cm, 2.5*cm, 6.5*cm, 2.5*cm, 6.5*cm])
-    t_meta.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')),
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F9FAFB')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 2), ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+    t_h_left = Table([[h_left]], colWidths=[9.5*cm])
+    t_h_left.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
+        ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LEFTPADDING', (0,0), (-1,-1), 10),
     ]))
-    elements.append(t_meta)
-    elements.append(Spacer(1, 6))
 
-    # 3. Cards KPIs
-    kpi_table_data = [[
-        Paragraph(f"PROGRESSO TOTAL PERFURADO<br/><font size=10 color='#065F46'><b>{progresso_total:.2f} m</b></font>", st_kpi_lbl),
-        Paragraph(f"MÉDIA DE RECUPERAÇÃO<br/><font size=10 color='#065F46'><b>{media_rec:.1f} %</b></font>", st_kpi_lbl),
-        Paragraph(f"TOTAL HORAS PARADAS<br/><font size=10 color='#065F46'><b>{total_paradas:.1f} h</b></font>", st_kpi_lbl),
-        Paragraph(f"CONSUMO TOTAL DIESEL<br/><font size=10 color='#065F46'><b>{diesel_input} L</b></font>", st_kpi_lbl),
-    ]]
-    t_kpi = Table(kpi_table_data, colWidths=[6.75*cm]*4)
-    t_kpi.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#10B981')),
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#ECFDF5')),
+    meta_grid = [
+        [Paragraph("<b>Projeto/Cliente:</b> " + cliente, st_meta_lbl), Paragraph("<b>Furo:</b> " + furo_id, st_meta_lbl), Paragraph("<b>Data:</b> " + data_rel.strftime('%d/%m/%Y'), st_meta_lbl)],
+        [Paragraph("<b>Sonda:</b> " + sonda, st_meta_lbl), Paragraph("<b>Inclin./Azimute:</b> " + inclin_azim, st_meta_lbl), Paragraph("<b>Turno:</b> " + turno, st_meta_lbl)],
+        [Paragraph("<b>Sondador Responsável:</b> " + sondador, st_meta_lbl), Paragraph("<b>Coordenadas:</b> " + coords, st_meta_lbl), Paragraph("<b>Última Caixa:</b> " + ult_cx, st_meta_lbl)]
+    ]
+    t_h_right = Table(meta_grid, colWidths=[6.2*cm, 6.2*cm, 5.8*cm])
+    t_h_right.setStyle(TableStyle([
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('TOPPADDING', (0,0), (-1,-1), 4), ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
     ]))
-    elements.append(t_kpi)
+
+    header_full = Table([[t_h_left, t_h_right]], colWidths=[9.5*cm, 18.2*cm])
+    header_full.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+    elements.append(header_full)
     elements.append(Spacer(1, 8))
 
-    # 4. Tabela Operacional
-    table_pdf = [[
+    # 2. CARDS KPIS
+    def create_kpi_card(title, value, color_hex):
+        v_style = ParagraphStyle('KVc', parent=st_kpi_val, textColor=colors.HexColor(color_hex))
+        p_t = Paragraph(title, st_kpi_lbl)
+        p_v = Paragraph(value, v_style)
+        t = Table([[p_t], [p_v]], colWidths=[6.6*cm])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+            ('LINELEFT', (0,0), (0,-1), 3.5, colors.HexColor(color_hex)),
+            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
+            ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ]))
+        return t
+
+    k1 = create_kpi_card("PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "#0284C7")
+    k2 = create_kpi_card("MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %", "#059669")
+    k3 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h", "#DC2626")
+    k4 = create_kpi_card("CONSUMO TOTAL DIESEL", f"{diesel_input} L", "#D97706")
+
+    kpi_bar = Table([[k1, k2, k3, k4]], colWidths=[6.9*cm]*4)
+    kpi_bar.setStyle(TableStyle([
+        ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+    elements.append(kpi_bar)
+    elements.append(Spacer(1, 8))
+
+    # 3. TABELA PRINCIPAL
+    pdf_table = [[
         Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
         Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
         Paragraph("Nº Cx", st_th), Paragraph("Parado", st_th), Paragraph("Motivo Parada", st_th), Paragraph("Descrição Litológica / Observações", st_th)
     ]]
 
     for _, r in df.iterrows():
-        table_pdf.append([
+        pdf_table.append([
             Paragraph(str(r['Item']), st_td), Paragraph(r['Horário'], st_td),
-            Paragraph(f"{r['De (m)']:.2f}", st_td), Paragraph(f"{r['Até (m)']:.2f}", st_td),
-            Paragraph(f"{r['Avanço (m)']:.2f}", st_td), Paragraph(f"{r['Acumulado (m)']:.2f}", st_td),
-            Paragraph(f"{r['Recup. (m)']:.2f}", st_td), Paragraph(f"{r['Recup. (%)']:.1f}%", st_td),
-            Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Parado (h)']} h", st_td),
+            Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
+            Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
+            Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
+            Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td),
             Paragraph(r['Motivo Parada'], st_td_left), Paragraph(r['Descrição Litológica / Observações'], st_td_left)
         ])
 
-    # Linha de Totais
-    table_pdf.append([
-        Paragraph("<b>TOTAIS / MÉDIAS:</b>", st_td_left), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
-        Paragraph(f"<b>{progresso_total:.2f} m</b>", st_td), Paragraph(f"<b>{df['Acumulado (m)'].max():.2f} m</b>", st_td),
-        Paragraph(f"<b>{df['Recup. (m)'].sum():.2f} m</b>", st_td), Paragraph(f"<b>{media_rec:.1f}%</b>", st_td),
-        Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>", st_td),
-        Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo acompanhado com alta recuperação.", st_td_left)
+    # Linha de Totais / Médias Operacionais
+    pdf_table.append([
+        Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
+        Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{df['Acumulado (m)'].max():.2f} m</b>".replace('.', ','), st_td),
+        Paragraph(f"<b>{df['Recup. (m)'].sum():.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
+        Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
+        Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo finalizado no turno com alta recuperação.", st_td_left)
     ])
 
-    col_w = [0.9*cm, 1.8*cm, 1.2*cm, 1.2*cm, 1.4*cm, 1.6*cm, 1.4*cm, 1.4*cm, 1.0*cm, 1.1*cm, 2.8*cm, 9.2*cm]
-    t_ops = Table(table_pdf, colWidths=col_w)
-    t_ops.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#059669')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#D1D5DB')),
+    col_widths = [0.9*cm, 2.0*cm, 1.3*cm, 1.3*cm, 1.5*cm, 1.7*cm, 1.5*cm, 1.5*cm, 1.1*cm, 1.2*cm, 3.2*cm, 9.5*cm]
+    t_main = Table(pdf_table, colWidths=col_widths)
+    t_main.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#E5E7EB')),
+        ('SPAN', (0, -1), (3, -1)),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E0F2FE')),
+        ('LINEABOVE', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
+        ('LINEBELOW', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
     ]))
-    elements.append(t_ops)
-    elements.append(Spacer(1, 15))
+    elements.append(t_main)
+    elements.append(Spacer(1, 20))
 
-    # 5. Bloco Triplo de Assinaturas (Padrão DrillData)
-    st_ass_nome = ParagraphStyle('AssNome', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1)
-    st_ass_cargo = ParagraphStyle('AssCargo', fontName='Helvetica', fontSize=7, leading=8, alignment=1, textColor=colors.HexColor('#4B5563'))
+    # 4. ASSINATURAS
+    st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
+    st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
 
-    ass_data = [
-        [Paragraph("___________________________________", st_ass_nome), Paragraph("___________________________________", st_ass_nome), Paragraph("___________________________________", st_ass_nome)],
+    ass_table = Table([
+        [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
         [Paragraph(f"<b>{sondador}</b>", st_ass_nome), Paragraph("<b>Eng. Geotécnico / Geólogo</b>", st_ass_nome), Paragraph(f"<b>{cliente}</b>", st_ass_nome)],
         [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
-    ]
-    t_ass = Table(ass_data, colWidths=[9.0*cm, 9.0*cm, 9.0*cm])
-    t_ass.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+    ], colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
     
-    elements.append(KeepTogether(t_ass))
+    ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+    elements.append(KeepTogether(ass_table))
 
     doc.build(elements, canvasmaker=DrillDataCanvas)
 
     st.download_button(
-        "📄 Baixar Relatório PDF (.pdf)",
-        data=pdf_buf.getvalue(),
+        "📄 Baixar Relatório PDF Identico (.pdf)",
+        data=buf_pdf.getvalue(),
         file_name=f"Relatorio_DrillData_{furo_id}.pdf",
         mime="application/pdf",
         use_container_width=True
