@@ -27,7 +27,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DINÂMICA DA SESSÃO ---
+# --- INICIALIZAÇÃO TOTALMENTE VAZIA DA SESSÃO ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = []
 
@@ -48,14 +48,14 @@ with col_logo:
 with col_gest:
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
-        cliente = st.text_input("Projeto/Cliente", value="Mineração Santa Rita")
-        sonda = st.text_input("Sonda", value="CS14 Core Drill")
+        cliente = st.text_input("Projeto/Cliente", value="")
+        sonda = st.text_input("Sonda", value="")
     with col_g2:
-        furo_id = st.text_input("Furo", value="DDH-024")
-        inclin_azim = st.text_input("Inclin./Azimute", value="-60° / 180°")
+        furo_id = st.text_input("Furo", value="")
+        inclin_azim = st.text_input("Inclin./Azimute", value="")
     with col_g3:
-        sondador = st.text_input("Sondador Responsável", value="Natanael Souza")
-        coords = st.text_input("Coordenadas", value="E: 245120 | N: 9284100")
+        sondador = st.text_input("Sondador Responsável", value="")
+        coords = st.text_input("Coordenadas", value="")
 
 col_f1, col_f2, col_f3 = st.columns(3)
 with col_f1:
@@ -63,7 +63,7 @@ with col_f1:
 with col_f2:
     turno = st.selectbox("Turno", ["Diurno", "Noturno"])
 with col_f3:
-    diesel_input = st.number_input("Consumo Total Diesel (L)", value=105, step=5)
+    diesel_input = st.number_input("Consumo Total Diesel (L)", value=0, step=5)
 
 st.markdown("---")
 
@@ -88,11 +88,11 @@ with col_m5:
 
 col_h1, col_h2, col_l1 = st.columns([1, 2, 3])
 with col_h1:
-    horario_str = st.text_input("Horário (Ex: 07:00 - 08:15)", value="07:00 - 08:15")
+    horario_str = st.text_input("Horário (Ex: 07:00 - 08:15)", value="")
 with col_h2:
     motivo_parada = st.text_input("Motivo Parada", value="Nenhuma")
 with col_l1:
-    litologia_obs = st.text_input("Descrição Litológica / Observações", value="Solo de alteração / saprolito.")
+    litologia_obs = st.text_input("Descrição Litológica / Observações", value="")
 
 # Registro Fotográfico da Manobra / Caixa
 st.subheader("📷 Registro Fotográfico da Manobra")
@@ -138,7 +138,7 @@ if btn_adicionar:
             "Descrição Litológica / Observações": litologia_obs,
             "Foto": img_capturada
         })
-        st.success("✅ Manobra registrada com sucesso!")
+        st.success("✅ Manobra registrada!")
         st.rerun()
 
 if btn_remover and st.session_state['itens_sondagem']:
@@ -160,7 +160,7 @@ else:
     recup_tot_m = 0.0
     media_rec = 0.0
     total_paradas = 0.0
-    ult_cx = "N/A"
+    ult_cx = "-"
 
 st.markdown("---")
 st.subheader("📋 Tabela do Boletim Diário")
@@ -386,7 +386,7 @@ st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.
 
 ass_table = Table([
     [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
-    [Paragraph(f"<b>{sondador}</b>", st_ass_nome), Paragraph("<b>Eng. Geotécnico / Geólogo</b>", st_ass_nome), Paragraph(f"<b>{cliente}</b>", st_ass_nome)],
+    [Paragraph(f"<b>{sondador if sondador else 'Sondador'}</b>", st_ass_nome), Paragraph("<b>Eng. Geotécnico / Geólogo</b>", st_ass_nome), Paragraph(f"<b>{cliente if cliente else 'Cliente'}</b>", st_ass_nome)],
     [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
 ], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
 
@@ -398,7 +398,7 @@ doc.build(elements, canvasmaker=DrillDataCanvas)
 st.download_button(
     "📄 Baixar Relatório PDF Atualizado (.pdf)",
     data=buf_pdf.getvalue(),
-    file_name=f"Relatorio_DrillData_{furo_id}.pdf",
+    file_name=f"Relatorio_DrillData_{furo_id if furo_id else 'Sondagem'}.pdf",
     mime="application/pdf",
     use_container_width=True
 )
