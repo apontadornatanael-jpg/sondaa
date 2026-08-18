@@ -14,11 +14,11 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
+from reportlab.graphics.shapes import Drawing, Rect, Polygon, Group
 
 # --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
 st.set_page_config(page_title="DrillData - Relatório de Sondagem", layout="wide")
 
-# Ocultar menus e ajustar margins do Streamlit Cloud
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden !important;}
@@ -31,7 +31,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- DADOS DO BOLETIM (IGUAL AO PDF) ---
+# --- DADOS DO BOLETIM (IDÊNTICOS AO MODELO DRILLDATA ORIGINAL) ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = [
         {"Item": 1, "Horário": "07:00 - 08:15", "De (m)": 0.00, "Até (m)": 1.50, "Avanço (m)": 1.50, "Acumulado (m)": 1.50, "Recup. (m)": 1.45, "Recup. (%)": 96.7, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Troca de Broca", "Descrição Litológica / Observações": "Início do furo HQ. Solo de alteração/ saprolito."},
@@ -47,7 +47,7 @@ if 'itens_sondagem' not in st.session_state:
 st.title("⛏️ DRILLDATA — Sistema Digital de Sondagem Mineral")
 st.markdown("---")
 
-# Metadados configuráveis
+# Metadados
 c_m1, c_m2, c_m3 = st.columns(3)
 with c_m1:
     cliente = st.text_input("Projeto/Cliente", value="Mineração Santa Rita")
@@ -65,18 +65,17 @@ with c_m3:
 
 df = pd.DataFrame(st.session_state['itens_sondagem'])
 progresso_total = df['Avanço (m)'].sum()
-media_rec = df['Recup. (%)'].mean()
+recup_tot_m = df['Recup. (m)'].sum()
+media_rec = (recup_tot_m / progresso_total * 100) if progresso_total > 0 else 0.0
 total_paradas = df['Parado'].sum()
 
 st.markdown("---")
-st.subheader("Pré-visualização dos Dados")
 st.dataframe(df, use_container_width=True, hide_index=True)
 
-# --- BOTÕES DE GERAMENTO ---
 col_dl1, col_dl2 = st.columns(2)
 
 # ==========================================
-# 1. GERADOR DO EXCEL 100% IDÊNTICO AO PDF
+# 1. PLANILHA EXCEL DRILLDATA IDÊNTICA
 # ==========================================
 with col_dl1:
     buf_excel = io.BytesIO()
@@ -85,21 +84,19 @@ with col_dl1:
     ws.title = "Boletim Diário"
     ws.views.sheetView[0].showGridLines = True
 
-    # Cores FIÉIS AO PDF
-    C_HEADER_BG = "0F172A"      # Azul Escuro / Grafite
-    C_HEADER_FG = "FFFFFF"      # Branco
-    C_GREEN_TEXT = "059669"     # Verde Recuperação
-    C_TOT_BG = "E0F2FE"         # Azul Claro Linha de Totais
-    C_BORDER = "CBD5E1"         # Cinza Borda
+    C_HEADER_BG = "0F172A"
+    C_HEADER_FG = "FFFFFF"
+    C_GREEN_TEXT = "059669"
+    C_TOT_BG = "E0F2FE"
+    C_BORDER = "CBD5E1"
 
-    font_hdr_title = Font(name="Calibri", size=14, bold=True, color="10B981")
-    font_hdr_sub = Font(name="Calibri", size=8, color="FFFFFF")
-    font_meta_lbl = Font(name="Calibri", size=8, bold=True, color="334155")
-    font_meta_val = Font(name="Calibri", size=8, color="0F172A")
-    font_th = Font(name="Calibri", size=8, bold=True, color=C_HEADER_FG)
-    font_td = Font(name="Calibri", size=8)
-    font_td_rec = Font(name="Calibri", size=8, bold=True, color=C_GREEN_TEXT)
-    font_tot = Font(name="Calibri", size=8, bold=True, color="0F172A")
+    font_hdr_title = Font(name="Arial", size=13, bold=True, color="10B981")
+    font_hdr_sub = Font(name="Arial", size=8, color="94A3B8")
+    font_meta_lbl = Font(name="Arial", size=8, bold=True, color="0F172A")
+    font_th = Font(name="Arial", size=8, bold=True, color=C_HEADER_FG)
+    font_td = Font(name="Arial", size=8)
+    font_td_rec = Font(name="Arial", size=8, bold=True, color=C_GREEN_TEXT)
+    font_tot = Font(name="Arial", size=8, bold=True, color="0F172A")
 
     fill_hdr = PatternFill("solid", fgColor=C_HEADER_BG)
     fill_th = PatternFill("solid", fgColor=C_HEADER_BG)
@@ -113,14 +110,12 @@ with col_dl1:
     al_left = Alignment(horizontal="left", vertical="center")
     al_right = Alignment(horizontal="right", vertical="center")
 
-    # A1:D3 - Header DrillData (Lado Esquerdo)
     ws.merge_cells("A1:D3")
-    ws["A1"] = "⛏ DRILLDATA\nRelatório Técnico & Boletim Diário de Sondagem"
+    ws["A1"] = "DRILLDATA\nRelatório Técnico & Boletim Diário de Sondagem"
     ws["A1"].font = font_hdr_title
     ws["A1"].fill = fill_hdr
     ws["A1"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-    # E1:L3 - Metadados Grid (Lado Direito)
     meta_structure = [
         [("E1", "F1", f"Projeto/Cliente: {cliente}"), ("G1", "H1", f"Furo: {furo_id}"), ("I1", "L1", f"Data: {data_rel.strftime('%d/%m/%Y')}")],
         [("E2", "F2", f"Sonda: {sonda}"), ("G2", "H2", f"Inclin./Azimute: {inclin_azim}"), ("I2", "L2", f"Turno: {turno}")],
@@ -135,11 +130,10 @@ with col_dl1:
             cell.alignment = al_left
             cell.border = border_thin
 
-    # Linha 5-6: CARDS DE KPI
     kpis = [
         ("A5:C5", "A6:C6", "PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "0284C7"),
         ("D5:F5", "D6:F6", "MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %", "059669"),
-        ("G5:I5", "G6:I6", "TOTAL HORAS PARADAS", f"{total_paradas:.1f} h", "DC2626"),
+        ("G5:I5", "G6:I6", "TOTAL HORAS PARADAS", f"{total_paradas:.1f} h".replace('.', ','), "DC2626"),
         ("J5:L5", "J6:L6", "CONSUMO TOTAL DIESEL", f"{diesel_input} L", "D97706")
     ]
     for top_m, bot_m, lbl, val, color_hex in kpis:
@@ -149,18 +143,17 @@ with col_dl1:
         bot_cell = ws[bot_m.split(":")[0]]
         
         top_cell.value = lbl
-        top_cell.font = Font(name="Calibri", size=7, bold=True, color="64748B")
+        top_cell.font = Font(name="Arial", size=7, bold=True, color="64748B")
         top_cell.fill = fill_kpi
         top_cell.alignment = al_center
 
         bot_cell.value = val
-        bot_cell.font = Font(name="Calibri", size=12, bold=True, color=color_hex)
+        bot_cell.font = Font(name="Arial", size=11, bold=True, color=color_hex)
         bot_cell.fill = fill_kpi
         bot_cell.alignment = al_center
 
-    # Linha 8: Cabeçalhos da Tabela
     headers = ["Item", "Horário", "De (m)", "Até (m)", "Avanço (m)", "Acumulado (m)", "Recup. (m)", "Recup. (%)", "Nº Cx", "Parado", "Motivo Parada", "Descrição Litológica / Observações"]
-    ws.row_dimensions[8].height = 24
+    ws.row_dimensions[8].height = 22
     for c_idx, h_text in enumerate(headers, 1):
         cell = ws.cell(row=8, column=c_idx, value=h_text)
         cell.font = font_th
@@ -168,7 +161,6 @@ with col_dl1:
         cell.alignment = al_center
         cell.border = border_thin
 
-    # Preenchimento de Dados
     curr_row = 9
     for _, r in df.iterrows():
         ws.cell(row=curr_row, column=1, value=r["Item"]).alignment = al_center
@@ -179,7 +171,6 @@ with col_dl1:
         ws.cell(row=curr_row, column=6, value=f"{r['Acumulado (m)']:.2f}".replace('.', ',')).alignment = al_right
         ws.cell(row=curr_row, column=7, value=f"{r['Recup. (m)']:.2f}".replace('.', ',')).alignment = al_right
         
-        # Recup (%) em Verde
         cell_rec = ws.cell(row=curr_row, column=8, value=f"{r['Recup. (%)']:.1f}%".replace('.', ','))
         cell_rec.alignment = al_right
         cell_rec.font = font_td_rec
@@ -195,14 +186,13 @@ with col_dl1:
             c_cell.border = border_thin
         curr_row += 1
 
-    # Linha de Totais / Médias
     ws.cell(row=curr_row, column=1, value="TOTAIS / MÉDIAS OPERACIONAIS:").font = font_tot
     ws.merge_cells(start_row=curr_row, start_column=1, end_row=curr_row, end_column=4)
     ws.cell(row=curr_row, column=1).alignment = al_left
 
     ws.cell(row=curr_row, column=5, value=f"{progresso_total:.2f} m".replace('.', ',')).alignment = al_right
     ws.cell(row=curr_row, column=6, value=f"{df['Acumulado (m)'].max():.2f} m".replace('.', ',')).alignment = al_right
-    ws.cell(row=curr_row, column=7, value=f"{df['Recup. (m)'].sum():.2f} m".replace('.', ',')).alignment = al_right
+    ws.cell(row=curr_row, column=7, value=f"{recup_tot_m:.2f} m".replace('.', ',')).alignment = al_right
     ws.cell(row=curr_row, column=8, value=f"{media_rec:.1f}%".replace('.', ',')).alignment = al_right
     ws.cell(row=curr_row, column=9, value=ult_cx).alignment = al_center
     ws.cell(row=curr_row, column=10, value=f"{total_paradas:.1f} h".replace('.', ',')).alignment = al_center
@@ -215,8 +205,7 @@ with col_dl1:
         c_tot.fill = fill_tot
         c_tot.border = Border(top=Side(style='medium', color="0284C7"), bottom=Side(style='medium', color="0284C7"))
 
-    # Ajuste Larguras
-    widths = [6, 14, 10, 10, 11, 13, 11, 11, 8, 10, 22, 36]
+    widths = [6, 14, 10, 10, 12, 13, 11, 11, 8, 10, 22, 38]
     for idx, w in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(idx)].width = w
 
@@ -230,7 +219,7 @@ with col_dl1:
     )
 
 # ==========================================
-# 2. GERADOR DO PDF 100% IDÊNTICO
+# 2. PDF DRILLDATA IDÊNTICO AO MODELO
 # ==========================================
 with col_dl2:
     class DrillDataCanvas(canvas.Canvas):
@@ -248,29 +237,35 @@ with col_dl2:
                 self.__dict__.update(state)
                 self.setFont("Helvetica", 8)
                 self.setFillColor(colors.HexColor('#64748B'))
-                self.drawString(1.2*cm, 0.8*cm, "DrillData — Sistema Digital de Sondagem Mineral")
-                self.drawRightString(28.5*cm, 0.8*cm, f"Página {self._pageNumber} de {num_pages}")
+                self.drawString(1.0*cm, 0.7*cm, "DrillData — Sistema Digital de Sondagem Mineral")
+                self.drawRightString(28.7*cm, 0.7*cm, f"Página {self._pageNumber} de {num_pages}")
                 super().showPage()
             super().save()
+
+    # Desenho vetorial do Ícone da Picareta DRILLDATA
+    def draw_pickaxe_icon():
+        d = Drawing(24, 24)
+        g = Group()
+        g.add(Polygon([2,20, 8,22, 22,8, 20,2], fillColor=colors.HexColor('#10B981'), strokeColor=None))
+        g.add(Polygon([10,10, 4,16, 2,14, 8,8], fillColor=colors.HexColor('#059669'), strokeColor=None))
+        d.add(g)
+        return d
 
     buf_pdf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf_pdf, pagesize=landscape(A4),
-        leftMargin=1.0*cm, rightMargin=1.0*cm,
-        topMargin=1.0*cm, bottomMargin=1.2*cm
+        leftMargin=0.8*cm, rightMargin=0.8*cm,
+        topMargin=0.8*cm, bottomMargin=1.0*cm
     )
     elements = []
-    styles = getSampleStyleSheet()
 
-    # Estilos de Texto do PDF
-    st_title = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.white)
+    st_title = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=12, leading=14, textColor=colors.HexColor('#10B981'))
     st_subtitle = ParagraphStyle('H2', fontName='Helvetica', fontSize=7.5, leading=9, textColor=colors.HexColor('#94A3B8'))
     
     st_meta_lbl = ParagraphStyle('ML', fontName='Helvetica-Bold', fontSize=7, leading=8.5, textColor=colors.HexColor('#0F172A'))
-    st_meta_val = ParagraphStyle('MV', fontName='Helvetica', fontSize=7, leading=8.5, textColor=colors.HexColor('#334155'))
 
     st_kpi_lbl = ParagraphStyle('KL', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#475569'))
-    st_kpi_val = ParagraphStyle('KV', fontName='Helvetica-Bold', fontSize=12, leading=14, alignment=0)
+    st_kpi_val = ParagraphStyle('KV', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=0)
 
     st_th = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.white)
     st_td = ParagraphStyle('TD', fontName='Helvetica', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#0F172A'))
@@ -279,15 +274,23 @@ with col_dl2:
     st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
     # 1. BANNER CABEÇALHO
-    h_left = [
-        Paragraph("<b>⛏ DRILLDATA</b>", st_title),
+    h_text_cell = [
+        Paragraph("<b>DRILLDATA</b>", st_title),
         Paragraph("Relatório Técnico & Boletim Diário de Sondagem", st_subtitle)
     ]
-    t_h_left = Table([[h_left]], colWidths=[9.5*cm])
+    
+    header_left_box = Table([[draw_pickaxe_icon(), h_text_cell]], colWidths=[0.8*cm, 8.4*cm])
+    header_left_box.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (-1,-1), 2),
+        ('RIGHTPADDING', (0,0), (-1,-1), 2),
+    ]))
+
+    t_h_left = Table([[header_left_box]], colWidths=[9.4*cm])
     t_h_left.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-        ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
     ]))
 
     meta_grid = [
@@ -295,7 +298,7 @@ with col_dl2:
         [Paragraph("<b>Sonda:</b> " + sonda, st_meta_lbl), Paragraph("<b>Inclin./Azimute:</b> " + inclin_azim, st_meta_lbl), Paragraph("<b>Turno:</b> " + turno, st_meta_lbl)],
         [Paragraph("<b>Sondador Responsável:</b> " + sondador, st_meta_lbl), Paragraph("<b>Coordenadas:</b> " + coords, st_meta_lbl), Paragraph("<b>Última Caixa:</b> " + ult_cx, st_meta_lbl)]
     ]
-    t_h_right = Table(meta_grid, colWidths=[6.2*cm, 6.2*cm, 5.8*cm])
+    t_h_right = Table(meta_grid, colWidths=[6.3*cm, 6.3*cm, 6.1*cm])
     t_h_right.setStyle(TableStyle([
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
@@ -303,21 +306,21 @@ with col_dl2:
         ('LEFTPADDING', (0,0), (-1,-1), 6),
     ]))
 
-    header_full = Table([[t_h_left, t_h_right]], colWidths=[9.5*cm, 18.2*cm])
+    header_full = Table([[t_h_left, t_h_right]], colWidths=[9.4*cm, 18.7*cm])
     header_full.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
     ]))
     elements.append(header_full)
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 6))
 
     # 2. CARDS KPIS
     def create_kpi_card(title, value, color_hex):
         v_style = ParagraphStyle('KVc', parent=st_kpi_val, textColor=colors.HexColor(color_hex))
         p_t = Paragraph(title, st_kpi_lbl)
         p_v = Paragraph(value, v_style)
-        t = Table([[p_t], [p_v]], colWidths=[6.6*cm])
+        t = Table([[p_t], [p_v]], colWidths=[6.7*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
             ('LINELEFT', (0,0), (0,-1), 3.5, colors.HexColor(color_hex)),
@@ -329,18 +332,18 @@ with col_dl2:
 
     k1 = create_kpi_card("PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "#0284C7")
     k2 = create_kpi_card("MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %", "#059669")
-    k3 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h", "#DC2626")
+    k3 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h".replace('.', ','), "#DC2626")
     k4 = create_kpi_card("CONSUMO TOTAL DIESEL", f"{diesel_input} L", "#D97706")
 
-    kpi_bar = Table([[k1, k2, k3, k4]], colWidths=[6.9*cm]*4)
+    kpi_bar = Table([[k1, k2, k3, k4]], colWidths=[7.0*cm]*4)
     kpi_bar.setStyle(TableStyle([
         ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
     ]))
     elements.append(kpi_bar)
-    elements.append(Spacer(1, 8))
+    elements.append(Spacer(1, 6))
 
-    # 3. TABELA PRINCIPAL
+    # 3. TABELA COM LARGURAS EXATAS (CABEÇALHO EM UMA LINHA)
     pdf_table = [[
         Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
         Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
@@ -357,29 +360,29 @@ with col_dl2:
             Paragraph(r['Motivo Parada'], st_td_left), Paragraph(r['Descrição Litológica / Observações'], st_td_left)
         ])
 
-    # Linha de Totais / Médias Operacionais
     pdf_table.append([
         Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
         Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{df['Acumulado (m)'].max():.2f} m</b>".replace('.', ','), st_td),
-        Paragraph(f"<b>{df['Recup. (m)'].sum():.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
+        Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
         Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
         Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo finalizado no turno com alta recuperação.", st_td_left)
     ])
 
-    col_widths = [0.9*cm, 2.0*cm, 1.3*cm, 1.3*cm, 1.5*cm, 1.7*cm, 1.5*cm, 1.5*cm, 1.1*cm, 1.2*cm, 3.2*cm, 9.5*cm]
+    # Larguras ajustadas para caber perfeitamente na página
+    col_widths = [0.8*cm, 2.1*cm, 1.3*cm, 1.3*cm, 1.6*cm, 1.8*cm, 1.6*cm, 1.6*cm, 1.1*cm, 1.2*cm, 3.2*cm, 10.5*cm]
     t_main = Table(pdf_table, colWidths=col_widths)
     t_main.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('TOPPADDING', (0,0), (-1,-1), 2.5), ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
         ('SPAN', (0, -1), (3, -1)),
         ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E0F2FE')),
         ('LINEABOVE', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
         ('LINEBELOW', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
     ]))
     elements.append(t_main)
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 18))
 
     # 4. ASSINATURAS
     st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
@@ -389,7 +392,7 @@ with col_dl2:
         [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
         [Paragraph(f"<b>{sondador}</b>", st_ass_nome), Paragraph("<b>Eng. Geotécnico / Geólogo</b>", st_ass_nome), Paragraph(f"<b>{cliente}</b>", st_ass_nome)],
         [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
-    ], colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
+    ], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
     
     ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
     elements.append(KeepTogether(ass_table))
