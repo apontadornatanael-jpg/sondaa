@@ -148,9 +148,9 @@ with col_h2:
 with col_l1:
     litologia_obs = st.text_input("Descrição Litológica / Observações da Manobra", value="")
 
-# Registro Fotográfico (Até 3 Fotos)
+# Registro Fotográfico (Até 3 Fotos por Manobra)
 st.subheader("📷 Registro Fotográfico da Manobra (Até 3 fotos)")
-aba_up, aba_cam = st.tabs(["📁 Selecionar da Galeria (Até 3)", "📸 Tirar Foto Agorita"])
+aba_up, aba_cam = st.tabs(["📁 Selecionar da Galeria (Até 3)", "📸 Tirar Foto Agora"])
 
 fotos_manobra_pil = []
 
@@ -207,7 +207,7 @@ if btn_adicionar:
             "Parado": horas_parado,
             "Motivo Parada": motivo_parada,
             "Descrição Litológica / Observações": litologia_obs,
-            "Fotos": fotos_manobra_pil.copy()  # Lista com até 3 objetos PIL Image
+            "Fotos": fotos_manobra_pil.copy()
         })
         st.success("✅ Manobra registrada!")
         st.rerun()
@@ -245,7 +245,6 @@ else:
 st.markdown("---")
 st.subheader("📋 Tabela do Boletim Diário")
 if not df.empty:
-    # Exibe no Streamlit a quantidade de fotos anexadas em vez da imagem crua
     df_exibicao = df.copy()
     df_exibicao['Qtd Fotos'] = df_exibicao['Fotos'].apply(lambda x: len(x) if isinstance(x, list) else 0)
     df_exibicao = df_exibicao.drop(columns=['Fotos'], errors='ignore')
@@ -254,7 +253,7 @@ else:
     st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
 
 # ==========================================
-# GERAÇÃO DO PDF MULTIFOLHAS (2 PÁGINAS)
+# GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS
 # ==========================================
 class DrillDataCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -313,10 +312,8 @@ st_obs_body = ParagraphStyle('OBSB', fontName='Helvetica', fontSize=7, leading=9
 st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
 
 # ==========================================
-# FOLHA 1: BOLETIM TÉCNICO & DADOS
+# 1. CABEÇALHO DA PRIMEIRA PÁGINA
 # ==========================================
-
-# LOGO DINÂMICA
 if img_logo_pil:
     logo_buf = io.BytesIO()
     img_logo_pil.convert("RGB").save(logo_buf, format="JPEG")
@@ -333,8 +330,7 @@ h_text_cell = [
 header_left_box = Table([[logo_element, h_text_cell]], colWidths=[1.7*cm, 7.5*cm])
 header_left_box.setStyle(TableStyle([
     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    ('LEFTPADDING', (0,0), (-1,-1), 0),
-    ('RIGHTPADDING', (0,0), (-1,-1), 0),
+    ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
 ]))
 
 t_h_left = Table([[header_left_box]], colWidths=[9.4*cm])
@@ -395,8 +391,10 @@ kpi_bar.setStyle(TableStyle([
 elements.append(kpi_bar)
 elements.append(Spacer(1, 6))
 
-# TABELA PRINCIPAL DE MANOBRAS
-pdf_table = [[
+# ==========================================
+# 2. TABELA PRINCIPAL DE MANOBRAS (DINÂMICA)
+# ==========================================
+pdf_table_rows = [[
     Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
     Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
     Paragraph("Nº Cx", st_th), Paragraph("Parado", st_th), Paragraph("Motivo Parada", st_th), Paragraph("Descrição Litológica / Observações", st_th)
@@ -404,7 +402,7 @@ pdf_table = [[
 
 if not df.empty:
     for _, r in df.iterrows():
-        pdf_table.append([
+        pdf_table_rows.append([
             Paragraph(str(r['Item']), st_td), Paragraph(r['Horário'], st_td),
             Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
             Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
@@ -413,30 +411,37 @@ if not df.empty:
             Paragraph(r['Motivo Parada'], st_td_left), Paragraph(r['Descrição Litológica / Observações'], st_td_left)
         ])
 
-pdf_table.append([
-    Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
-    Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
-    Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
-    Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
-    Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo em andamento/finalizado.", st_td_left)
-])
-
 col_widths = [0.8*cm, 2.1*cm, 1.3*cm, 1.3*cm, 1.6*cm, 1.8*cm, 1.6*cm, 1.6*cm, 1.1*cm, 1.2*cm, 3.2*cm, 10.5*cm]
-t_main = Table(pdf_table, colWidths=col_widths)
+
+t_main = Table(pdf_table_rows, colWidths=col_widths, repeatRows=1)
 t_main.setStyle(TableStyle([
     ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
     ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
     ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
     ('TOPPADDING', (0,0), (-1,-1), 2.5), ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
-    ('SPAN', (0, -1), (3, -1)),
-    ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#E0F2FE')),
-    ('LINEABOVE', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
-    ('LINEBELOW', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
 ]))
 elements.append(t_main)
-elements.append(Spacer(1, 6))
 
-# CAIXA DE OBSERVAÇÕES
+# ==========================================
+# 3. RODA PÉ DE TOTAIS, OBSERVAÇÕES E ASSINATURAS (FICA SEMPRE JUNTO)
+# ==========================================
+totals_row = [[
+    Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
+    Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
+    Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
+    Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
+    Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo em andamento/finalizado.", st_td_left)
+]]
+t_tot = Table(totals_row, colWidths=col_widths)
+t_tot.setStyle(TableStyle([
+    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#E0F2FE')),
+    ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+    ('SPAN', (0, 0), (3, 0)),
+    ('LINEABOVE', (0, 0), (-1, -1), 1.0, colors.HexColor('#0284C7')),
+    ('LINEBELOW', (0, 0), (-1, -1), 1.0, colors.HexColor('#0284C7')),
+    ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+]))
+
 obs_content = [
     [Paragraph("<b>📌 OBSERVAÇÕES / NOTAS DE CAMPO</b>", st_obs_title)],
     [Paragraph(obs_gerais_furo if obs_gerais_furo.strip() else "Nenhuma observação adicional registrada para este boletim.", st_obs_body)]
@@ -451,10 +456,7 @@ t_obs.setStyle(TableStyle([
     ('LEFTPADDING', (0,0), (-1,-1), 8),
     ('RIGHTPADDING', (0,0), (-1,-1), 8),
 ]))
-elements.append(t_obs)
-elements.append(Spacer(1, 10))
 
-# ASSINATURAS DA FOLHA 1 (3 Assinaturas)
 st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
 st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
 
@@ -463,16 +465,22 @@ ass_table = Table([
     [Paragraph(f"<b>{sondador_equipe if sondador_equipe else 'Sondador / Equipe'}</b>", st_ass_nome), Paragraph(f"<b>{geologo if geologo else 'Geólogo Responsável'}</b>", st_ass_nome), Paragraph(f"<b>{empresa if empresa else 'Empresa / Cliente'}</b>", st_ass_nome)],
     [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo / Geologia", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
 ], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
-
 ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
-elements.append(KeepTogether(ass_table))
+
+# Agrupa Totais, Obs e Assinaturas para que nunca fiquem órfãos em páginas separadas
+elements.append(KeepTogether([
+    t_tot,
+    Spacer(1, 6),
+    t_obs,
+    Spacer(1, 10),
+    ass_table
+]))
 
 # ==========================================
-# FOLHA 2: REGISTRO FOTOGRÁFICO DE CAMPO
+# 4. ANEXO: REGISTRO FOTOGRÁFICO DE CAMPO
 # ==========================================
 elements.append(PageBreak())
 
-# Cabeçalho da Segunda Folha
 p2_header = Table([[
     Paragraph(f"<b>ANEXO: REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS — FURO {furo_id}</b>", st_page2_title),
     Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_inicio.strftime('%d/%m/%Y')}", st_meta_lbl)
@@ -488,7 +496,6 @@ p2_header.setStyle(TableStyle([
 elements.append(p2_header)
 elements.append(Spacer(1, 10))
 
-# Mapeia todas as fotos de todas as manobras
 cards_de_fotos = []
 
 for item in st.session_state['itens_sondagem']:
