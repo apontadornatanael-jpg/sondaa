@@ -256,7 +256,7 @@ elements.append(KeepTogether(ass_table))
 doc.build(elements, canvasmaker=DrillDataCanvas)
 
 st.download_button(
-    "📄 Baixar Relatório PDF Identico (.pdf)",
+    "📄 Baixar Relatório PDF (.pdf)",
     data=buf_pdf.getvalue(),
     file_name=f"Relatorio_DrillData_{furo_id}.pdf",
     mime="application/pdf",
