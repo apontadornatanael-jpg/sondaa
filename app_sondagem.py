@@ -2,15 +2,12 @@ import streamlit as st
 import pandas as pd
 import io
 from datetime import datetime
-
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
+from PIL import Image
 
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.graphics.shapes import Drawing, Polygon, Group
@@ -30,172 +27,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.header("1. Cabeçalho do Projeto & Equipe Técnica")
+# --- DICIONÁRIO DE LITOLOGIA BASE ---
+DADOS_LITOLOGIA = {
+    "Solo de alteração / Saprolito": "HQ",
+    "Saprolito avermelhado c/ quartzo": "HQ",
+    "Rocha alterada (Xisto friável)": "HQ",
+    "Rocha sã (Gnaisse cinza médio)": "NQ",
+    "Rocha sã maciça (RQD elevado)": "NQ",
+    "Outro / Não classificado": "NQ"
+}
 
-col_logo, col_gest = st.columns([1, 3])
-with col_logo:
-    st.subheader("🖼️ Logomarca da Empresa")
-    logo_file = st.file_uploader("Carregar Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
-    img_logo_pil = Image.open(logo_file) if logo_file else None
-    if img_logo_pil:
-        st.image(img_logo_pil, width=180)
-
-with col_gest:
-    col_g1, col_g2, col_g3 = st.columns(3)
-    with col_g1:
-        empresa = st.text_input("Empresa / Mineradora", value="Mineração Picuí S.A.")
-        projeto = st.text_input("Nome do Projeto", value="Projeto Picuí")
-    with col_g2:
-        coordenador = st.text_input("Coordenador do Projeto", value="Eng. Carlos Andrade")
-        supervisor = st.text_input("Supervisor de Campo", value="Téc. Roberto Lima")
-    with col_g3:
-        geologo = st.text_input("Geólogo Responsável", value="Geól. Mariana Costa")
-        sondador = st.text_input("Sondador / Equipe", value="Natanael & Equipe")
-
-col_furo1, col_furo2 = st.columns(2)
-with col_furo1:
-    furo_id = st.text_input("ID do Furo", value="F-001")
-with col_furo2:
-    diametro = st.selectbox("Diâmetro", ['HQ (63.5mm)', 'NQ (47.6mm)', 'BQ (36.5mm)', 'RC (Circ. Reversa)', 'Outro'])
-
-with st.expander("🌐 Coordenadas GPS e Mapa do Furo", expanded=True):
-    lat_padrao = -6.515831
-    lon_padrao = -36.344525
-
-    if 'lat_gps' not in st.session_state:
-        st.session_state['lat_gps'] = lat_padrao
-    if 'lon_gps' not in st.session_state:
-        st.session_state['lon_gps'] = lon_padrao
-
-    st.components.v1.html("""
-        <script>
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                const urlParams = new URLSearchParams(window.parent.location.search);
-                if (urlParams.get('lat') !== lat.toString() || urlParams.get('lon') !== lon.toString()) {
-                    urlParams.set('lat', lat);
-                    urlParams.set('lon', lon);
-                    window.parent.location.search = urlParams.toString();
-                }
-            });
-        }
-        </script>
-    """, height=0)
-
-st.header("2. Registro de Manobras e Fotos do Testemunho")
-
-prox_de = st.session_state['manobras'][-1]['Para (m)'] if st.session_state['manobras'] else 0.0
-prox_para = round(prox_de + 1.5, 2)
-rec_total_ant = st.session_state['manobras'][-1]['Rec. Total (m)'] if st.session_state['manobras'] else 0.0
-
-# --- Peça de Corte e Revestimento ---
-st.subheader("🛠️ Peça de Corte e Revestimento")
-col_pc1, col_pc2, col_pc3, col_pc4, col_pc5 = st.columns(5)
-with col_pc1:
-    peca_diam = st.text_input("Diâm. Peça", value="NQ")
-with col_pc2:
-    peca_coroa = st.text_input("Coroa nº", placeholder="Ex: 89173-17")
-with col_pc3:
-    peca_calib = st.text_input("Calib. nº", placeholder="Ex: 1381/17")
-with col_pc4:
-    num_caixa = st.number_input("Nº da Caixa", min_value=1, value=1, step=1)
-with col_pc5:
-    revest_info = st.text_input("Revestimento (Diâm / De-Até)", placeholder="Ex: HQ De 0,00 até 34,40m")
-
-st.markdown("---")
-
-# --- Dados de Avanço e Recuperação ---
-col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
-with col_m1:
-    de = st.number_input("De (m)", value=float(prox_de), step=0.5, format="%.2f")
-with col_m2:
-    para = st.number_input("Para (m)", value=float(prox_para), step=0.5, format="%.2f")
-with col_m3:
-    rec = st.number_input("Rec. (m)", value=round(para - de, 2), step=0.1, format="%.2f")
-with col_m4:
-    rec_total = st.number_input("Rec. Total Acum. (m)", value=round(rec_total_ant + rec, 2), step=0.1, format="%.2f")
-with col_m5:
-    rqd = st.number_input("RQD (m)", value=round((para - de) * 0.8, 2), step=0.1, format="%.2f")
-
-# --- Horários do Operacional ---
-col_h1, col_h2, col_h3, col_h4 = st.columns(4)
-with col_h1:
-    hora_ini = st.time_input("Horário Inicial", value=datetime.now().time())
-with col_h2:
-    hora_fim = st.time_input("Horário Final", value=datetime.now().time())
-with col_h3:
-    tempo_refeicao = st.text_input("Refeição", placeholder="Ex: 01:00 ou 12:00-13:00")
-with col_h4:
-    manutencao_prev = st.text_input("Manutenção Preventiva", placeholder="Ex: 00:15 ou 07:15-07:30")
-
-# --- Litologia, Alteração e Observações ---
-col_l1, col_l2 = st.columns(2)
-with col_l1:
-    litologia = st.selectbox("Litologia", list(DADOS_LITOLOGIA.keys()))
-with col_l2:
-    alteracao = st.selectbox("Alteração", ['Solo / Inconsol.', 'Completamente Alterada', 'Muito Alterada', 'Moderadamente Alterada', 'Pouco Alterada', 'Rocha Sã'])
-
-st.subheader("📷 Registro Fotográfico da Amostra / Caixa")
-aba_cam, aba_up = st.tabs(["📸 Tirar Foto Agora", "📁 Carregar da Galeria"])
-
-img_capturada = None
-with aba_cam:
-    foto_cam = st.camera_input("Tirar foto da caixa de testemunho")
-    if foto_cam: img_capturada = Image.open(foto_cam)
-
-with aba_up:
-    foto_file = st.file_uploader("Selecione uma imagem", type=['jpg', 'jpeg', 'png'])
-    if foto_file and not img_capturada: img_capturada = Image.open(foto_file)
-
-col_btn1, col_btn2 = st.columns([1, 4])
-with col_btn1:
-    btn_adicionar = st.button("➕ Adicionar Manobra", type="primary")
-with col_btn2:
-    btn_remover = st.button("🗑️ Remover Última")
-
-if btn_adicionar:
-    avanco = round(para - de, 2)
-    if avanco <= 0:
-        st.error("⚠️ O valor 'Para' deve ser maior que 'De'!")
-    else:
-        pct_rec = min(100.0, round((rec / avanco) * 100, 1)) if avanco > 0 else 0.0
-        pct_rqd = min(100.0, round((rqd / avanco) * 100, 1)) if avanco > 0 else 0.0
-        
-        if pct_rqd < 25: rqd_class = 'Muito Pobre'
-        elif pct_rqd < 50: rqd_class = 'Pobre'
-        elif pct_rqd < 75: rqd_class = 'Razoável'
-        elif pct_rqd < 90: rqd_class = 'Boa'
-        else: rqd_class = 'Excelente'
-
-        st.session_state['manobras'].append({
-            'Manobra': len(st.session_state['manobras']) + 1,
-            'De (m)': de, 'Para (m)': para, 'Avanço (m)': avanco,
-            'Rec. (m)': rec, 'Rec. Total (m)': rec_total, 'Rec (%)': pct_rec, 
-            'RQD (m)': rqd, 'RQD (%)': pct_rqd, 'Qualidade RQD': rqd_class,
-            'Diâm. Peça': peca_diam, 'Coroa nº': peca_coroa, 'Calib. nº': peca_calib,
-            'Nº Caixa': num_caixa, 'Revestimento': revest_info,
-            'Hora Inicial': hora_ini.strftime("%H:%M"), 
-            'Hora Final': hora_fim.strftime("%H:%M"),
-            'Refeição': tempo_refeicao,
-            'Manutenção Preventiva': manutencao_prev,
-            'Litologia': litologia, 'Alteração': alteracao, 
-            'Foto': img_capturada
-        })
-        st.success("✅ Manobra registrada!")
-        st.rerun()
-
-if btn_remover and st.session_state['manobras']:
-    st.session_state['manobras'].pop()
-    st.warning("🗑️ Última manobra removida.")
-    st.rerun()
-
-st.markdown("---")
-
-
-# --- DADOS DO BOLETIM (VALORES EXATOS DA IMAGEM MODELO) ---
-if 'itens_sondagem' not in st.session_state:
+# --- INICIALIZAÇÃO SEGURA DA SESSÃO ---
+if 'itens_sondagem' not in st.session_state or not st.session_state['itens_sondagem']:
     st.session_state['itens_sondagem'] = [
         {"Item": 1, "Horário": "07:00 - 08:15", "De (m)": 0.00, "Até (m)": 1.50, "Avanço (m)": 1.50, "Acumulado (m)": 1.50, "Recup. (m)": 1.45, "Recup. (%)": 96.7, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Troca de Broca", "Descrição Litológica / Observações": "Início do furo HQ. Solo de alteração/ saprolito."},
         {"Item": 2, "Horário": "08:15 - 09:30", "De (m)": 1.50, "Até (m)": 3.00, "Avanço (m)": 1.50, "Acumulado (m)": 3.00, "Recup. (m)": 1.50, "Recup. (%)": 100.0, "Nº Cx": "01", "Parado": 0.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Saprolito avermelhado com fragmentos de quartzo."},
@@ -207,36 +50,115 @@ if 'itens_sondagem' not in st.session_state:
         {"Item": 8, "Horário": "16:30 - 17:30", "De (m)": 15.00, "Até (m)": 18.00, "Avanço (m)": 3.00, "Acumulado (m)": 18.00, "Recup. (m)": 2.55, "Recup. (%)": 85.0, "Nº Cx": "04", "Parado": 1.0, "Motivo Parada": "Nenhuma", "Descrição Litológica / Observações": "Fim do turno. Preservação do testemunho."}
     ]
 
-st.title("⛏️ DRILLDATA — Sistema Digital de Sondagem Mineral")
-st.markdown("---")
+# --- 1. CABEÇALHO DO PROJETO ---
+st.header("1. Cabeçalho do Projeto & Equipe Técnica")
 
-# Metadados de entrada
-c_m1, c_m2, c_m3 = st.columns(3)
-with c_m1:
-    cliente = st.text_input("Projeto/Cliente", value="Mineração Santa Rita")
-    sonda = st.text_input("Sonda", value="CS14 Core Drill")
-    sondador = st.text_input("Sondador Responsável", value="Natanael Souza")
-with c_m2:
-    furo_id = st.text_input("Furo", value="DDH-024")
-    inclin_azim = st.text_input("Inclin./Azimute", value="-60° / 180°")
-    coords = st.text_input("Coordenadas", value="E: 245120 | N: 9284100")
-with c_m3:
+col_logo, col_gest = st.columns([1, 3])
+with col_logo:
+    st.subheader("🖼️ Logomarca")
+    logo_file = st.file_uploader("Carregar Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
+    img_logo_pil = Image.open(logo_file) if logo_file else None
+    if img_logo_pil:
+        st.image(img_logo_pil, width=180)
+
+with col_gest:
+    col_g1, col_g2, col_g3 = st.columns(3)
+    with col_g1:
+        cliente = st.text_input("Projeto/Cliente", value="Mineração Santa Rita")
+        sonda = st.text_input("Sonda", value="CS14 Core Drill")
+    with col_g2:
+        furo_id = st.text_input("Furo", value="DDH-024")
+        inclin_azim = st.text_input("Inclin./Azimute", value="-60° / 180°")
+    with col_g3:
+        sondador = st.text_input("Sondador Responsável", value="Natanael Souza")
+        coords = st.text_input("Coordenadas", value="E: 245120 | N: 9284100")
+
+col_f1, col_f2, col_f3 = st.columns(3)
+with col_f1:
     data_rel = st.date_input("Data", value=datetime(2026, 8, 17))
+with col_f2:
     turno = st.selectbox("Turno", ["Diurno", "Noturno"])
+with col_f3:
     ult_cx = st.text_input("Última Caixa", value="Nº 04")
     diesel_input = st.number_input("Consumo Total Diesel (L)", value=105)
 
+st.markdown("---")
+
+# --- 2. REGISTRO DE MANOBRAS ---
+st.header("2. Registro de Manobras e Operações")
+
+itens = st.session_state['itens_sondagem']
+prox_de = itens[-1]['Até (m)'] if itens else 0.0
+prox_ate = round(prox_de + 1.5, 2)
+
+col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+with col_m1:
+    de = st.number_input("De (m)", value=float(prox_de), step=0.5, format="%.2f")
+with col_m2:
+    ate = st.number_input("Até (m)", value=float(prox_ate), step=0.5, format="%.2f")
+with col_m3:
+    rec = st.number_input("Recup. (m)", value=round(ate - de, 2), step=0.1, format="%.2f")
+with col_m4:
+    num_caixa_str = st.text_input("Nº da Caixa", value=itens[-1]['Nº Cx'] if itens else "01")
+with col_m5:
+    horas_parado = st.number_input("Horas Parado (h)", value=0.0, step=0.5, format="%.1f")
+
+col_h1, col_h2, col_l1 = st.columns([1, 2, 3])
+with col_h1:
+    horario_str = st.text_input("Horário (Ex: 07:00 - 08:15)", value="07:00 - 08:15")
+with col_h2:
+    motivo_parada = st.text_input("Motivo Parada", value="Nenhuma")
+with col_l1:
+    litologia_obs = st.text_input("Descrição Litológica / Observações", value="Rocha sã maciça.")
+
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    btn_adicionar = st.button("➕ Adicionar Manobra", type="primary")
+with col_btn2:
+    btn_remover = st.button("🗑️ Remover Última")
+
+if btn_adicionar:
+    avanco = round(ate - de, 2)
+    if avanco <= 0:
+        st.error("⚠️ O valor 'Até' deve ser maior que 'De'!")
+    else:
+        acumulado = round((itens[-1]['Acumulado (m)'] if itens else 0.0) + avanco, 2)
+        pct_rec = min(100.0, round((rec / avanco) * 100, 1)) if avanco > 0 else 0.0
+        
+        st.session_state['itens_sondagem'].append({
+            "Item": len(itens) + 1,
+            "Horário": horario_str,
+            "De (m)": de,
+            "Até (m)": ate,
+            "Avanço (m)": avanco,
+            "Acumulado (m)": acumulado,
+            "Recup. (m)": rec,
+            "Recup. (%)": pct_rec,
+            "Nº Cx": num_caixa_str,
+            "Parado": horas_parado,
+            "Motivo Parada": motivo_parada,
+            "Descrição Litológica / Observações": litologia_obs
+        })
+        st.success("✅ Manobra adicionada!")
+        st.rerun()
+
+if btn_remover and st.session_state['itens_sondagem']:
+    st.session_state['itens_sondagem'].pop()
+    st.warning("🗑️ Última manobra removida.")
+    st.rerun()
+
+# --- DATAFRAME DA TABELA ---
 df = pd.DataFrame(st.session_state['itens_sondagem'])
-progresso_total = df['Avanço (m)'].sum()
-recup_tot_m = df['Recup. (m)'].sum()
-media_rec = 96.8  # Média exatamente idêntica à do relatório
-total_paradas = 2.5  # Paradas idênticas ao modelo da imagem
+progresso_total = df['Avanço (m)'].sum() if not df.empty else 0.0
+recup_tot_m = df['Recup. (m)'].sum() if not df.empty else 0.0
+media_rec = round(df['Recup. (%)'].mean(), 1) if not df.empty else 0.0
+total_paradas = df['Parado'].sum() if not df.empty else 0.0
 
 st.markdown("---")
 st.dataframe(df, use_container_width=True, hide_index=True)
 
 # ==========================================
-# GERAÇÃO DO PDF EXATO
+# GERAÇÃO DO PDF
 # ==========================================
 class DrillDataCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -258,15 +180,11 @@ class DrillDataCanvas(canvas.Canvas):
             super().showPage()
         super().save()
 
-# Desenho vetorial da logo DrillData (3 traços estilizados idênticos ao PDF original)
 def draw_drilldata_logo():
     d = Drawing(26, 26)
     g = Group()
-    # Barra 1
     g.add(Polygon([0, 4, 6, 24, 10, 24, 4, 4], fillColor=colors.HexColor('#0EA5E9'), strokeColor=None))
-    # Barra 2
     g.add(Polygon([7, 0, 13, 20, 17, 20, 11, 0], fillColor=colors.HexColor('#0284C7'), strokeColor=None))
-    # Barra 3
     g.add(Polygon([14, 0, 20, 16, 24, 16, 18, 0], fillColor=colors.HexColor('#0369A1'), strokeColor=None))
     d.add(g)
     return d
@@ -293,7 +211,7 @@ st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8
 st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
 st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
-# --- 1. MONTAGEM DO CABEÇALHO SUPERIOR ---
+# 1. CABEÇALHO SUPERIOR
 h_text_cell = [
     Paragraph("<b>DRILLDATA</b>", st_title),
     Paragraph("Relatório Técnico & Boletim Diário de Sondagem", st_subtitle)
@@ -336,7 +254,7 @@ header_full.setStyle(TableStyle([
 elements.append(header_full)
 elements.append(Spacer(1, 6))
 
-# --- 2. CARDS DE KPIS ---
+# 2. CARDS DE KPIS
 def create_kpi_card(title, value, color_hex):
     v_style = ParagraphStyle('KVc', parent=st_kpi_val, textColor=colors.HexColor(color_hex))
     p_t = Paragraph(title, st_kpi_lbl)
@@ -364,7 +282,7 @@ kpi_bar.setStyle(TableStyle([
 elements.append(kpi_bar)
 elements.append(Spacer(1, 6))
 
-# --- 3. TABELA DE DADOS ---
+# 3. TABELA DE DADOS
 pdf_table = [[
     Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
     Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
@@ -383,7 +301,7 @@ for _, r in df.iterrows():
 
 pdf_table.append([
     Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
-    Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{df['Acumulado (m)'].max():.2f} m</b>".replace('.', ','), st_td),
+    Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{df['Acumulado (m)'].max() if not df.empty else 0.0:.2f} m</b>".replace('.', ','), st_td),
     Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
     Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
     Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo finalizado no turno com alta recuperação.", st_td_left)
@@ -404,7 +322,7 @@ t_main.setStyle(TableStyle([
 elements.append(t_main)
 elements.append(Spacer(1, 18))
 
-# --- 4. ASSINATURAS ---
+# 4. ASSINATURAS
 st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
 st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
 
