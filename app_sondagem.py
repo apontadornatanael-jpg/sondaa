@@ -7,7 +7,7 @@ from PIL import Image
 
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, Image as RLImage
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, PageBreak, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
@@ -63,7 +63,6 @@ if (navigator.geolocation) {
 """
 components.html(loc_html, height=0, width=0)
 
-# Atualiza na sessão se vier pela URL
 query_params = st.query_params
 if 'lat' in query_params and 'lon' in query_params:
     try:
@@ -106,7 +105,6 @@ with col_p2:
 with col_p3:
     diesel_input = st.number_input("Consumo Total Diesel (L)", value=0, step=5)
 
-# Seção de Coordenadas e Detalhes
 with st.expander("🌐 Coordenadas GPS Automáticas e Detalhes do Furo", expanded=True):
     col_c1, col_c2, col_c3, col_c4 = st.columns(4)
     with col_c1:
@@ -236,7 +234,7 @@ else:
     st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
 
 # ==========================================
-# GERAÇÃO DO PDF EXATO
+# GERAÇÃO DO PDF MULTIFOLHAS (2 PÁGINAS)
 # ==========================================
 class DrillDataCanvas(canvas.Canvas):
     def __init__(self, *args, **kwargs):
@@ -289,9 +287,14 @@ st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8
 st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
 st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 
-# Estilos para a Caixa de Observações
 st_obs_title = ParagraphStyle('OBST', fontName='Helvetica-Bold', fontSize=7.5, leading=9, textColor=colors.HexColor('#0F172A'))
 st_obs_body = ParagraphStyle('OBSB', fontName='Helvetica', fontSize=7, leading=9, textColor=colors.HexColor('#334155'))
+
+st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
+
+# ==========================================
+# FOLHA 1: BOLETIM TÉCNICO & DADOS
+# ==========================================
 
 # LOGO DINÂMICA
 if img_logo_pil:
@@ -344,7 +347,7 @@ header_full.setStyle(TableStyle([
 elements.append(header_full)
 elements.append(Spacer(1, 6))
 
-# 2. CARDS DE KPIS
+# CARDS DE KPIS
 def create_kpi_card(title, value, color_hex):
     v_style = ParagraphStyle('KVc', parent=st_kpi_val, textColor=colors.HexColor(color_hex))
     p_t = Paragraph(title, st_kpi_lbl)
@@ -372,7 +375,7 @@ kpi_bar.setStyle(TableStyle([
 elements.append(kpi_bar)
 elements.append(Spacer(1, 6))
 
-# 3. TABELA DE DADOS
+# TABELA PRINCIPAL DE MANOBRAS
 pdf_table = [[
     Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
     Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
@@ -413,7 +416,7 @@ t_main.setStyle(TableStyle([
 elements.append(t_main)
 elements.append(Spacer(1, 6))
 
-# 4. CAIXA DE OBSERVAÇÕES ABAIXO DA TABELA
+# CAIXA DE OBSERVAÇÕES
 obs_content = [
     [Paragraph("<b>📌 OBSERVAÇÕES / NOTAS DE CAMPO</b>", st_obs_title)],
     [Paragraph(obs_gerais_furo if obs_gerais_furo.strip() else "Nenhuma observação adicional registrada para este boletim.", st_obs_body)]
@@ -431,13 +434,44 @@ t_obs.setStyle(TableStyle([
 elements.append(t_obs)
 elements.append(Spacer(1, 10))
 
-# 5. REGISTRO FOTOGRÁFICO NO PDF
+# ASSINATURAS DA FOLHA 1
+st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
+st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
+
+ass_table = Table([
+    [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
+    [Paragraph(f"<b>{sondador_equipe if sondador_equipe else 'Sondador / Equipe'}</b>", st_ass_nome), Paragraph(f"<b>{geologo if geologo else 'Geólogo Responsável'}</b>", st_ass_nome), Paragraph(f"<b>{empresa if empresa else 'Empresa / Cliente'}</b>", st_ass_nome)],
+    [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo / Geologia", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
+], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
+
+ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
+elements.append(KeepTogether(ass_table))
+
+# ==========================================
+# FOLHA 2: REGISTRO FOTOGRÁFICO DE CAMPO
+# ==========================================
+elements.append(PageBreak())
+
+# Cabeçalho da Segunda Folha
+p2_header = Table([[
+    Paragraph(f"<b>ANEXO: REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS — FURO {furo_id}</b>", st_page2_title),
+    Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_inicio.strftime('%d/%m/%Y')}", st_meta_lbl)
+]], colWidths=[18.0*cm, 10.1*cm])
+p2_header.setStyle(TableStyle([
+    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+    ('TOPPADDING', (0,0), (-1,-1), 6),
+    ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ('LEFTPADDING', (0,0), (-1,-1), 8),
+]))
+elements.append(p2_header)
+elements.append(Spacer(1, 10))
+
+# Fotos anexadas durante o preenchimento
 fotos_para_pdf = [item for item in st.session_state['itens_sondagem'] if item.get('Foto') is not None]
 
 if fotos_para_pdf:
-    elements.append(Paragraph("<b>REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS</b>", ParagraphStyle('H_Foto', fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor('#0F172A'))))
-    elements.append(Spacer(1, 4))
-    
     foto_rows = []
     current_row = []
     
@@ -447,14 +481,14 @@ if fotos_para_pdf:
         img_buffer.seek(0)
         
         rl_img = RLImage(img_buffer, width=8.5*cm, height=4.5*cm)
-        caption = Paragraph(f"<b>Manobra {item['Item']}</b>: {item['De (m)']}m - {item['Até (m)']}m | Caixa {item['Nº Cx']}", st_td)
+        caption = Paragraph(f"<b>Manobra {item['Item']}</b>: {item['De (m)']}m - {item['Até (m)']}m | Cx: {item['Nº Cx']}", st_td)
         
         cell_table = Table([[rl_img], [caption]], colWidths=[8.5*cm])
         cell_table.setStyle(TableStyle([
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('TOPPADDING', (0,0), (-1,-1), 2),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 2)
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3)
         ]))
         
         current_row.append(cell_table)
@@ -470,23 +504,19 @@ if fotos_para_pdf:
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ('LEFTPADDING', (0,0), (-1,-1), 2),
         ('RIGHTPADDING', (0,0), (-1,-1), 2),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8)
     ]))
-    elements.append(KeepTogether([grid_fotos]))
-    elements.append(Spacer(1, 12))
-
-# 6. ASSINATURAS
-st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
-st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
-
-ass_table = Table([
-    [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
-    [Paragraph(f"<b>{sondador_equipe if sondador_equipe else 'Sondador / Equipe'}</b>", st_ass_nome), Paragraph(f"<b>{geologo if geologo else 'Geólogo Responsável'}</b>", st_ass_nome), Paragraph(f"<b>{empresa if empresa else 'Empresa / Cliente'}</b>", st_ass_nome)],
-    [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo / Geologia", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
-], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
-
-ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
-elements.append(KeepTogether(ass_table))
+    elements.append(grid_fotos)
+else:
+    no_photo_box = Table([[Paragraph("Nenhum registro fotográfico foi anexado para este boletim de sondagem.", st_obs_body)]], colWidths=[28.1*cm])
+    no_photo_box.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('TOPPADDING', (0,0), (-1,-1), 15),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 15),
+    ]))
+    elements.append(no_photo_box)
 
 doc.build(elements, canvasmaker=DrillDataCanvas)
 
