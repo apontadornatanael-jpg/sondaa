@@ -84,6 +84,116 @@ with st.expander("🌐 Coordenadas GPS e Mapa do Furo", expanded=True):
         </script>
     """, height=0)
 
+st.header("2. Registro de Manobras e Fotos do Testemunho")
+
+prox_de = st.session_state['manobras'][-1]['Para (m)'] if st.session_state['manobras'] else 0.0
+prox_para = round(prox_de + 1.5, 2)
+rec_total_ant = st.session_state['manobras'][-1]['Rec. Total (m)'] if st.session_state['manobras'] else 0.0
+
+# --- Peça de Corte e Revestimento ---
+st.subheader("🛠️ Peça de Corte e Revestimento")
+col_pc1, col_pc2, col_pc3, col_pc4, col_pc5 = st.columns(5)
+with col_pc1:
+    peca_diam = st.text_input("Diâm. Peça", value="NQ")
+with col_pc2:
+    peca_coroa = st.text_input("Coroa nº", placeholder="Ex: 89173-17")
+with col_pc3:
+    peca_calib = st.text_input("Calib. nº", placeholder="Ex: 1381/17")
+with col_pc4:
+    num_caixa = st.number_input("Nº da Caixa", min_value=1, value=1, step=1)
+with col_pc5:
+    revest_info = st.text_input("Revestimento (Diâm / De-Até)", placeholder="Ex: HQ De 0,00 até 34,40m")
+
+st.markdown("---")
+
+# --- Dados de Avanço e Recuperação ---
+col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+with col_m1:
+    de = st.number_input("De (m)", value=float(prox_de), step=0.5, format="%.2f")
+with col_m2:
+    para = st.number_input("Para (m)", value=float(prox_para), step=0.5, format="%.2f")
+with col_m3:
+    rec = st.number_input("Rec. (m)", value=round(para - de, 2), step=0.1, format="%.2f")
+with col_m4:
+    rec_total = st.number_input("Rec. Total Acum. (m)", value=round(rec_total_ant + rec, 2), step=0.1, format="%.2f")
+with col_m5:
+    rqd = st.number_input("RQD (m)", value=round((para - de) * 0.8, 2), step=0.1, format="%.2f")
+
+# --- Horários do Operacional ---
+col_h1, col_h2, col_h3, col_h4 = st.columns(4)
+with col_h1:
+    hora_ini = st.time_input("Horário Inicial", value=datetime.now().time())
+with col_h2:
+    hora_fim = st.time_input("Horário Final", value=datetime.now().time())
+with col_h3:
+    tempo_refeicao = st.text_input("Refeição", placeholder="Ex: 01:00 ou 12:00-13:00")
+with col_h4:
+    manutencao_prev = st.text_input("Manutenção Preventiva", placeholder="Ex: 00:15 ou 07:15-07:30")
+
+# --- Litologia, Alteração e Observações ---
+col_l1, col_l2 = st.columns(2)
+with col_l1:
+    litologia = st.selectbox("Litologia", list(DADOS_LITOLOGIA.keys()))
+with col_l2:
+    alteracao = st.selectbox("Alteração", ['Solo / Inconsol.', 'Completamente Alterada', 'Muito Alterada', 'Moderadamente Alterada', 'Pouco Alterada', 'Rocha Sã'])
+
+st.subheader("📷 Registro Fotográfico da Amostra / Caixa")
+aba_cam, aba_up = st.tabs(["📸 Tirar Foto Agora", "📁 Carregar da Galeria"])
+
+img_capturada = None
+with aba_cam:
+    foto_cam = st.camera_input("Tirar foto da caixa de testemunho")
+    if foto_cam: img_capturada = Image.open(foto_cam)
+
+with aba_up:
+    foto_file = st.file_uploader("Selecione uma imagem", type=['jpg', 'jpeg', 'png'])
+    if foto_file and not img_capturada: img_capturada = Image.open(foto_file)
+
+col_btn1, col_btn2 = st.columns([1, 4])
+with col_btn1:
+    btn_adicionar = st.button("➕ Adicionar Manobra", type="primary")
+with col_btn2:
+    btn_remover = st.button("🗑️ Remover Última")
+
+if btn_adicionar:
+    avanco = round(para - de, 2)
+    if avanco <= 0:
+        st.error("⚠️ O valor 'Para' deve ser maior que 'De'!")
+    else:
+        pct_rec = min(100.0, round((rec / avanco) * 100, 1)) if avanco > 0 else 0.0
+        pct_rqd = min(100.0, round((rqd / avanco) * 100, 1)) if avanco > 0 else 0.0
+        
+        if pct_rqd < 25: rqd_class = 'Muito Pobre'
+        elif pct_rqd < 50: rqd_class = 'Pobre'
+        elif pct_rqd < 75: rqd_class = 'Razoável'
+        elif pct_rqd < 90: rqd_class = 'Boa'
+        else: rqd_class = 'Excelente'
+
+        st.session_state['manobras'].append({
+            'Manobra': len(st.session_state['manobras']) + 1,
+            'De (m)': de, 'Para (m)': para, 'Avanço (m)': avanco,
+            'Rec. (m)': rec, 'Rec. Total (m)': rec_total, 'Rec (%)': pct_rec, 
+            'RQD (m)': rqd, 'RQD (%)': pct_rqd, 'Qualidade RQD': rqd_class,
+            'Diâm. Peça': peca_diam, 'Coroa nº': peca_coroa, 'Calib. nº': peca_calib,
+            'Nº Caixa': num_caixa, 'Revestimento': revest_info,
+            'Hora Inicial': hora_ini.strftime("%H:%M"), 
+            'Hora Final': hora_fim.strftime("%H:%M"),
+            'Refeição': tempo_refeicao,
+            'Manutenção Preventiva': manutencao_prev,
+            'Litologia': litologia, 'Alteração': alteracao, 
+            'Foto': img_capturada
+        })
+        st.success("✅ Manobra registrada!")
+        st.rerun()
+
+if btn_remover and st.session_state['manobras']:
+    st.session_state['manobras'].pop()
+    st.warning("🗑️ Última manobra removida.")
+    st.rerun()
+
+st.markdown("---")
+
+
 # --- DADOS DO BOLETIM (VALORES EXATOS DA IMAGEM MODELO) ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = [
