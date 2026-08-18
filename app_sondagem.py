@@ -30,6 +30,60 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+st.header("1. Cabeçalho do Projeto & Equipe Técnica")
+
+col_logo, col_gest = st.columns([1, 3])
+with col_logo:
+    st.subheader("🖼️ Logomarca da Empresa")
+    logo_file = st.file_uploader("Carregar Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
+    img_logo_pil = Image.open(logo_file) if logo_file else None
+    if img_logo_pil:
+        st.image(img_logo_pil, width=180)
+
+with col_gest:
+    col_g1, col_g2, col_g3 = st.columns(3)
+    with col_g1:
+        empresa = st.text_input("Empresa / Mineradora", value="Mineração Picuí S.A.")
+        projeto = st.text_input("Nome do Projeto", value="Projeto Picuí")
+    with col_g2:
+        coordenador = st.text_input("Coordenador do Projeto", value="Eng. Carlos Andrade")
+        supervisor = st.text_input("Supervisor de Campo", value="Téc. Roberto Lima")
+    with col_g3:
+        geologo = st.text_input("Geólogo Responsável", value="Geól. Mariana Costa")
+        sondador = st.text_input("Sondador / Equipe", value="Natanael & Equipe")
+
+col_furo1, col_furo2 = st.columns(2)
+with col_furo1:
+    furo_id = st.text_input("ID do Furo", value="F-001")
+with col_furo2:
+    diametro = st.selectbox("Diâmetro", ['HQ (63.5mm)', 'NQ (47.6mm)', 'BQ (36.5mm)', 'RC (Circ. Reversa)', 'Outro'])
+
+with st.expander("🌐 Coordenadas GPS e Mapa do Furo", expanded=True):
+    lat_padrao = -6.515831
+    lon_padrao = -36.344525
+
+    if 'lat_gps' not in st.session_state:
+        st.session_state['lat_gps'] = lat_padrao
+    if 'lon_gps' not in st.session_state:
+        st.session_state['lon_gps'] = lon_padrao
+
+    st.components.v1.html("""
+        <script>
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                const urlParams = new URLSearchParams(window.parent.location.search);
+                if (urlParams.get('lat') !== lat.toString() || urlParams.get('lon') !== lon.toString()) {
+                    urlParams.set('lat', lat);
+                    urlParams.set('lon', lon);
+                    window.parent.location.search = urlParams.toString();
+                }
+            });
+        }
+        </script>
+    """, height=0)
+
 # --- DADOS DO BOLETIM (VALORES EXATOS DA IMAGEM MODELO) ---
 if 'itens_sondagem' not in st.session_state:
     st.session_state['itens_sondagem'] = [
