@@ -38,7 +38,6 @@ if 'auto_long' not in st.session_state:
     st.session_state['auto_long'] = -36.344525
 
 # --- SCRIPT DE GEOLOCALIZAÇÃO AUTOMÁTICA EM TEMPO REAL ---
-# Tenta obter a localização via GPS/Navegador e atualiza os parâmetros na URL
 loc_html = """
 <script>
 if (navigator.geolocation) {
@@ -149,7 +148,7 @@ with col_h1:
 with col_h2:
     motivo_parada = st.text_input("Motivo Parada", value="Nenhuma")
 with col_l1:
-    litologia_obs = st.text_input("Descrição Litológica / Observações", value="")
+    litologia_obs = st.text_input("Descrição Litológica / Observações da Manobra", value="")
 
 # Registro Fotográfico
 st.subheader("📷 Registro Fotográfico da Manobra")
@@ -202,6 +201,15 @@ if btn_remover and st.session_state['itens_sondagem']:
     st.session_state['itens_sondagem'].pop()
     st.warning("🗑️ Última manobra removida.")
     st.rerun()
+
+# Campo de Observações Gerais do Furo
+st.markdown("---")
+st.subheader("📝 Observações Gerais do Furo / Relatório")
+obs_gerais_furo = st.text_area(
+    "Observações Gerais do Relatório (serão exibidas na caixa abaixo da tabela no PDF)",
+    value="Furo executado conforme o planejamento geotécnico e normas de segurança. Nível d'água não detectado durante a perfuração. Amostras preservadas e catalogadas.",
+    height=100
+)
 
 # --- DATAFRAME & CÁLCULOS DINÂMICOS ---
 df = pd.DataFrame(st.session_state['itens_sondagem'])
@@ -280,6 +288,10 @@ st_td = ParagraphStyle('TD', fontName='Helvetica', fontSize=6.5, leading=8, alig
 st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
 st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
 st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
+
+# Estilos para a Caixa de Observações
+st_obs_title = ParagraphStyle('OBST', fontName='Helvetica-Bold', fontSize=7.5, leading=9, textColor=colors.HexColor('#0F172A'))
+st_obs_body = ParagraphStyle('OBSB', fontName='Helvetica', fontSize=7, leading=9, textColor=colors.HexColor('#334155'))
 
 # LOGO DINÂMICA
 if img_logo_pil:
@@ -399,9 +411,27 @@ t_main.setStyle(TableStyle([
     ('LINEBELOW', (0, -1), (-1, -1), 1.0, colors.HexColor('#0284C7')),
 ]))
 elements.append(t_main)
-elements.append(Spacer(1, 12))
+elements.append(Spacer(1, 6))
 
-# 4. REGISTRO FOTOGRÁFICO NO PDF
+# 4. CAIXA DE OBSERVAÇÕES ABAIXO DA TABELA
+obs_content = [
+    [Paragraph("<b>📌 OBSERVAÇÕES / NOTAS DE CAMPO</b>", st_obs_title)],
+    [Paragraph(obs_gerais_furo if obs_gerais_furo.strip() else "Nenhuma observação adicional registrada para este boletim.", st_obs_body)]
+]
+t_obs = Table(obs_content, colWidths=[28.1*cm])
+t_obs.setStyle(TableStyle([
+    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
+    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+    ('LINELEFT', (0,0), (0,-1), 3.0, colors.HexColor('#0EA5E9')),
+    ('TOPPADDING', (0,0), (-1,-1), 4),
+    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ('LEFTPADDING', (0,0), (-1,-1), 8),
+    ('RIGHTPADDING', (0,0), (-1,-1), 8),
+]))
+elements.append(t_obs)
+elements.append(Spacer(1, 10))
+
+# 5. REGISTRO FOTOGRÁFICO NO PDF
 fotos_para_pdf = [item for item in st.session_state['itens_sondagem'] if item.get('Foto') is not None]
 
 if fotos_para_pdf:
@@ -445,7 +475,7 @@ if fotos_para_pdf:
     elements.append(KeepTogether([grid_fotos]))
     elements.append(Spacer(1, 12))
 
-# 5. ASSINATURAS
+# 6. ASSINATURAS
 st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
 st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
 
