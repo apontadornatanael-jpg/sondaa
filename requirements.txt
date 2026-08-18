@@ -1,3 +1,9 @@
 streamlit
 pandas
+matplotlib
+Pillow
+requests
+folium
+streamlit-folium
 openpyxl
+reportlab
