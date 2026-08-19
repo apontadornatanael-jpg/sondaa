@@ -270,10 +270,15 @@ else:
         height=100
     )
 
-    # --- DATAFRAME & CÁLCULOS DINÂMICOS ---
+    # --- DATAFRAME & CÁLCULOS DINÂMICOS COM PROTEÇÃO CONTRA KEYERROR ---
     df = pd.DataFrame(st.session_state['itens_sondagem'])
 
     if not df.empty:
+        if 'Trabalhado' not in df.columns:
+            df['Trabalhado'] = 0.0
+        if 'Parado' not in df.columns:
+            df['Parado'] = 0.0
+
         progresso_total = df['Avanço (m)'].sum()
         recup_tot_m = df['Recup. (m)'].sum()
         media_rec = round(df['Recup. (%)'].mean(), 1)
@@ -430,7 +435,7 @@ else:
     k4 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h".replace('.', ','), "#DC2626")
     k5 = create_kpi_card("CONSUMO TOTAL DIESEL", f"{diesel_input} L", "#D97706")
 
-    kpi_bar = Table([[k1, k2, k3, k4, k5]], colWidths=[5.6*cm]*5)
+    kpi_bar = Table([[k1, k2, k3, k4, k5]], colWidths=[5.62*cm]*5)
     kpi_bar.setStyle(TableStyle([
         ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
@@ -439,7 +444,7 @@ else:
     elements.append(Spacer(1, 6))
 
     # ==========================================
-    # 2. TABELA PRINCIPAL DE MANOBRAS (DINÂMICA)
+    # 2. TABELA PRINCIPAL DE MANOBRAS (PERFEITAMENTE ALINHADA - LARGURA 28.1 CM)
     # ==========================================
     pdf_table_rows = [[
         Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
@@ -450,45 +455,78 @@ else:
     if not df.empty:
         for _, r in df.iterrows():
             pdf_table_rows.append([
-                Paragraph(str(r['Item']), st_td), Paragraph(r['Horário'], st_td),
-                Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
-                Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
-                Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
-                Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Trabalhado']:.1f} h".replace('.', ','), st_td),
-                Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td), Paragraph(r['Motivo Parada'], st_td_left),
-                Paragraph(r['Descrição Litológica / Observações'], st_td_left)
+                Paragraph(str(r['Item']), st_td), 
+                Paragraph(str(r['Horário']), st_td),
+                Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), 
+                Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
+                Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), 
+                Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
+                Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), 
+                Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
+                Paragraph(str(r['Nº Cx']), st_td), 
+                Paragraph(f"{r['Trabalhado']:.1f} h".replace('.', ','), st_td),
+                Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td), 
+                Paragraph(str(r['Motivo Parada']), st_td_left),
+                Paragraph(str(r['Descrição Litológica / Observações']), st_td_left)
             ])
 
-    col_widths = [0.8*cm, 2.0*cm, 1.2*cm, 1.2*cm, 1.5*cm, 1.7*cm, 1.5*cm, 1.5*cm, 1.1*cm, 1.1*cm, 1.1*cm, 2.8*cm, 8.6*cm]
+    # SOMA DAS LARGURAS = 28.1 cm
+    col_widths = [
+        0.9*cm,  # Item
+        2.2*cm,  # Horário
+        1.3*cm,  # De (m)
+        1.3*cm,  # Até (m)
+        1.6*cm,  # Avanço (m)
+        1.8*cm,  # Acumulado (m)
+        1.5*cm,  # Recup. (m)
+        1.5*cm,  # Recup. (%)
+        1.1*cm,  # Nº Cx
+        1.1*cm,  # Trab.
+        1.1*cm,  # Parado
+        3.5*cm,  # Motivo Parada
+        9.2*cm   # Descrição Litológica / Observações
+    ]
 
     t_main = Table(pdf_table_rows, colWidths=col_widths, repeatRows=1)
     t_main.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 2.5), ('BOTTOMPADDING', (0,0), (-1,-1), 2.5),
+        ('TOPPADDING', (0,0), (-1,-1), 3), 
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('LEFTPADDING', (0,0), (-1,-1), 1),
+        ('RIGHTPADDING', (0,0), (-1,-1), 1),
     ]))
     elements.append(t_main)
 
     # ==========================================
-    # 3. RODA PÉ DE TOTAIS, OBSERVAÇÕES E ASSINATURAS (FICA SEMPRE JUNTO)
+    # 3. LINHA DE TOTAIS E OBSERVAÇÕES
     # ==========================================
     totals_row = [[
-        Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
-        Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
-        Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
-        Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_trabalhado:.1f} h</b>".replace('.', ','), st_td),
-        Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td), Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left),
+        Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), "", "", "",
+        Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), 
+        Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
+        Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), 
+        Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
+        Paragraph(f"<b>{ult_cx}</b>", st_td), 
+        Paragraph(f"<b>{total_trabalhado:.1f} h</b>".replace('.', ','), st_td),
+        Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td), 
+        Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left),
         Paragraph("Furo em andamento/finalizado.", st_td_left)
     ]]
+    
     t_tot = Table(totals_row, colWidths=col_widths)
     t_tot.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#E0F2FE')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('SPAN', (0, 0), (3, 0)),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('LINEABOVE', (0, 0), (-1, -1), 1.0, colors.HexColor('#0284C7')),
         ('LINEBELOW', (0, 0), (-1, -1), 1.0, colors.HexColor('#0284C7')),
-        ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('TOPPADDING', (0,0), (-1,-1), 3), 
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('LEFTPADDING', (0,0), (-1,-1), 1),
+        ('RIGHTPADDING', (0,0), (-1,-1), 1),
     ]))
 
     obs_content = [
@@ -513,10 +551,10 @@ else:
         [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
         [Paragraph(f"<b>{sondador_equipe if sondador_equipe else 'Sondador / Equipe'}</b>", st_ass_nome), Paragraph(f"<b>{geologo if geologo else 'Geólogo Responsável'}</b>", st_ass_nome), Paragraph(f"<b>{empresa if empresa else 'Empresa / Cliente'}</b>", st_ass_nome)],
         [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo / Geologia", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
-    ], colWidths=[9.3*cm, 9.3*cm, 9.3*cm])
+    ], colWidths=[9.36*cm, 9.36*cm, 9.36*cm])
     ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
 
-    # Agrupa Totais, Obs e Assinaturas para que nunca fiquem órfãos em páginas separadas
+    # Agrupa Totais, Obs e Assinaturas para que nunca fiquem órfãos
     elements.append(KeepTogether([
         t_tot,
         Spacer(1, 6),
@@ -581,7 +619,7 @@ else:
                 foto_rows.append(current_row)
                 current_row = []
                 
-        grid_fotos = Table(foto_rows, colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
+        grid_fotos = Table(foto_rows, colWidths=[9.36*cm, 9.36*cm, 9.36*cm])
         grid_fotos.setStyle(TableStyle([
             ('VALIGN', (0,0), (-1,-1), 'TOP'),
             ('LEFTPADDING', (0,0), (-1,-1), 2),
