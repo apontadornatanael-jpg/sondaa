@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 import io
+import os
 from datetime import datetime
 from PIL import Image
 
@@ -27,6 +28,10 @@ st.markdown("""
     .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
     </style>
 """, unsafe_allow_html=True)
+
+# --- DEFINIÇÃO DA LOGOMARCA FIXA ---
+# Nome exato da imagem que está salva no seu repositório do GitHub
+CAMINHO_LOGO_FIXO = "boa_fortuna.jpg"
 
 # --- CONTROLE DE AUTENTICAÇÃO / LOGIN ---
 if 'autenticado' not in st.session_state:
@@ -116,13 +121,25 @@ else:
     # --- 1. CABEÇALHO DO PROJETO & EQUIPE TÉCNICA ---
     st.header("1. Cabeçalho do Projeto & Equipe Técnica")
 
+    # Tenta carregar a imagem fixa do GitHub
+    img_logo_pil = None
+    if os.path.exists(CAMINHO_LOGO_FIXO):
+        img_logo_pil = Image.open(CAMINHO_LOGO_FIXO)
+
     col_logo, col_gest = st.columns([1, 3])
     with col_logo:
         st.subheader("🖼️ Logomarca da Empresa")
-        logo_file = st.file_uploader("Carregar Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
-        img_logo_pil = Image.open(logo_file) if logo_file else None
+        
         if img_logo_pil:
-            st.image(img_logo_pil, width=180)
+            st.image(img_logo_pil, caption="Boa Fortuna (Logo Padrão)", width=180)
+            st.info("💡 Logomarca padrão ativa automaticamente.")
+        else:
+            st.warning("⚠️ Logomarca padrão não localizada. Faça o upload manual abaixo.")
+        
+        logo_file = st.file_uploader("Substituir Logo (Opcional)", type=['png', 'jpg', 'jpeg'])
+        if logo_file:
+            img_logo_pil = Image.open(logo_file)
+            st.image(img_logo_pil, caption="Nova logo selecionada", width=180)
 
     with col_gest:
         col_g1, col_g2, col_g3 = st.columns(3)
@@ -300,7 +317,7 @@ else:
         st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
 
     # ==========================================
-    # GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS (SEM MARCA D'ÁGUA)
+    # GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS
     # ==========================================
     class DrillDataCanvas(canvas.Canvas):
         def __init__(self, *args, **kwargs):
@@ -354,18 +371,16 @@ else:
     st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
 
     # ==========================================
-    # 1. CABEÇALHO DO PROJETO (APENAS A LOGO DA EMPRESA)
+    # 1. CABEÇALHO DO PROJETO (APENAS A LOGO FIXA BOA FORTUNA)
     # ==========================================
     if img_logo_pil:
         logo_buf = io.BytesIO()
         img_logo_pil.convert("RGB").save(logo_buf, format="JPEG")
         logo_buf.seek(0)
-        # Redimensiona a imagem para caber na caixa de cabeçalho
         logo_element = RLImage(logo_buf, width=8.5*cm, height=1.5*cm)
     else:
         logo_element = draw_drilldata_logo()
 
-    # Bloco escuro contendo EXCLUSIVAMENTE a logomarca
     t_h_left = Table([[logo_element]], colWidths=[9.4*cm])
     t_h_left.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
@@ -474,19 +489,8 @@ else:
             ])
 
     col_widths = [
-        0.9*cm,  # Item
-        2.2*cm,  # Horário
-        1.3*cm,  # De (m)
-        1.3*cm,  # Até (m)
-        1.6*cm,  # Avanço (m)
-        1.8*cm,  # Acumulado (m)
-        1.5*cm,  # Recup. (m)
-        1.5*cm,  # Recup. (%)
-        1.1*cm,  # Nº Cx
-        1.1*cm,  # Trab.
-        1.1*cm,  # Parado
-        3.5*cm,  # Motivo Parada
-        9.2*cm   # Descrição Litológica / Observações
+        0.9*cm, 2.2*cm, 1.3*cm, 1.3*cm, 1.6*cm, 1.8*cm,
+        1.5*cm, 1.5*cm, 1.1*cm, 1.1*cm, 1.1*cm, 3.5*cm, 9.2*cm
     ]
 
     t_main = Table(pdf_table_rows, colWidths=col_widths, repeatRows=1)
