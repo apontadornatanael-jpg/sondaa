@@ -32,7 +32,6 @@ st.markdown("""
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
 
-# Dicionário de usuários padrão (usuário: senha)
 USUARIOS = {
     "admin": "admin123",
     "sondador": "drill2026",
@@ -62,7 +61,6 @@ def login_screen():
 if not st.session_state['autenticado']:
     login_screen()
 else:
-    # Botão para encerrar a sessão
     with st.sidebar:
         st.write("👤 **Sessão Ativa**")
         if st.button("🚪 Sair / Logout", use_container_width=True):
@@ -191,7 +189,6 @@ else:
     with col_l1:
         litologia_obs = st.text_input("Descrição Litológica / Observações da Manobra", value="")
 
-    # Registro Fotográfico (Até 3 Fotos por Manobra)
     st.subheader("📷 Registro Fotográfico da Manobra (Até 3 fotos)")
     aba_up, aba_cam = st.tabs(["📁 Selecionar da Galeria (Até 3)", "📸 Tirar Foto Agora"])
 
@@ -261,7 +258,6 @@ else:
         st.warning("🗑️ Última manobra removida.")
         st.rerun()
 
-    # Campo de Observações Gerais do Furo
     st.markdown("---")
     st.subheader("📝 Observações Gerais do Furo / Relatório")
     obs_gerais_furo = st.text_area(
@@ -270,7 +266,7 @@ else:
         height=100
     )
 
-    # --- DATAFRAME & CÁLCULOS DINÂMICOS COM PROTEÇÃO CONTRA KEYERROR ---
+    # --- DATAFRAME & CÁLCULOS DINÂMICOS ---
     df = pd.DataFrame(st.session_state['itens_sondagem'])
 
     if not df.empty:
@@ -363,7 +359,7 @@ else:
     st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
 
     # ==========================================
-    # 1. CABEÇALHO DA PRIMEIRA PÁGINA
+    # 1. CABEÇALHO COMPLETO DO PROJETO & EQUIPE TÉCNICA NO PDF
     # ==========================================
     if img_logo_pil:
         logo_buf = io.BytesIO()
@@ -387,21 +383,39 @@ else:
     t_h_left = Table([[header_left_box]], colWidths=[9.4*cm])
     t_h_left.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-        ('TOPPADDING', (0,0), (-1,-1), 6), ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
     ]))
 
+    # TODOS OS DADOS DO CABEÇALHO E GPS INCLUÍDOS AQUI:
     meta_grid = [
-        [Paragraph(f"<b>Empresa:</b> {empresa}", st_meta_lbl), Paragraph(f"<b>Furo:</b> {furo_id}", st_meta_lbl), Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m')} a {dt_termino.strftime('%d/%m/%Y')}", st_meta_lbl)],
-        [Paragraph(f"<b>Projeto:</b> {nome_projeto}", st_meta_lbl), Paragraph(f"<b>Diâmetro:</b> {diametro}", st_meta_lbl), Paragraph(f"<b>Coordenadas:</b> Lat: {latitude:.6f} | Long: {longitude:.6f}", st_meta_lbl)],
-        [Paragraph(f"<b>Coord./Geól.:</b> {coordenador} / {geologo}", st_meta_lbl), Paragraph(f"<b>Inclin./Azim.:</b> {inclinacao}° / {azimute}°", st_meta_lbl), Paragraph(f"<b>Sondador:</b> {sondador_equipe}", st_meta_lbl)]
+        [
+            Paragraph(f"<b>Empresa:</b> {empresa if empresa else '-'}", st_meta_lbl), 
+            Paragraph(f"<b>Furo:</b> {furo_id}", st_meta_lbl), 
+            Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m/%Y')} a {dt_termino.strftime('%d/%m/%Y')}", st_meta_lbl)
+        ],
+        [
+            Paragraph(f"<b>Projeto:</b> {nome_projeto if nome_projeto else '-'}", st_meta_lbl), 
+            Paragraph(f"<b>Diâmetro:</b> {diametro}", st_meta_lbl), 
+            Paragraph(f"<b>Coordenadas:</b> Lat: {latitude:.6f} | Long: {longitude:.6f}", st_meta_lbl)
+        ],
+        [
+            Paragraph(f"<b>Coordenador:</b> {coordenador if coordenador else '-'}", st_meta_lbl), 
+            Paragraph(f"<b>Supervisor:</b> {supervisor if supervisor else '-'}", st_meta_lbl), 
+            Paragraph(f"<b>Datum:</b> {datum}", st_meta_lbl)
+        ],
+        [
+            Paragraph(f"<b>Geólogo:</b> {geologo if geologo else '-'}", st_meta_lbl), 
+            Paragraph(f"<b>Sondador/Equipe:</b> {sondador_equipe if sondador_equipe else '-'}", st_meta_lbl), 
+            Paragraph(f"<b>Inclin. / Azim.:</b> {inclinacao}° / {azimute}°", st_meta_lbl)
+        ]
     ]
     t_h_right = Table(meta_grid, colWidths=[6.3*cm, 6.3*cm, 6.1*cm])
     t_h_right.setStyle(TableStyle([
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('LEFTPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 2), ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ('LEFTPADDING', (0,0), (-1,-1), 4),
     ]))
 
     header_full = Table([[t_h_left, t_h_right]], colWidths=[9.4*cm, 18.7*cm])
@@ -444,7 +458,7 @@ else:
     elements.append(Spacer(1, 6))
 
     # ==========================================
-    # 2. TABELA PRINCIPAL DE MANOBRAS (PERFEITAMENTE ALINHADA - LARGURA 28.1 CM)
+    # 2. TABELA PRINCIPAL DE MANOBRAS (28.1 CM DE LARGURA)
     # ==========================================
     pdf_table_rows = [[
         Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
@@ -470,7 +484,6 @@ else:
                 Paragraph(str(r['Descrição Litológica / Observações']), st_td_left)
             ])
 
-    # SOMA DAS LARGURAS = 28.1 cm
     col_widths = [
         0.9*cm,  # Item
         2.2*cm,  # Horário
@@ -554,7 +567,6 @@ else:
     ], colWidths=[9.36*cm, 9.36*cm, 9.36*cm])
     ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
 
-    # Agrupa Totais, Obs e Assinaturas para que nunca fiquem órfãos
     elements.append(KeepTogether([
         t_tot,
         Spacer(1, 6),
