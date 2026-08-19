@@ -300,7 +300,7 @@ else:
         st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
 
     # ==========================================
-    # GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS
+    # GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS (SEM MARCA D'ÁGUA)
     # ==========================================
     class DrillDataCanvas(canvas.Canvas):
         def __init__(self, *args, **kwargs):
@@ -315,9 +315,9 @@ else:
             num_pages = len(self._saved_page_states)
             for state in self._saved_page_states:
                 self.__dict__.update(state)
+                # Apenas numeração de página limpa e direta
                 self.setFont("Helvetica", 8)
                 self.setFillColor(colors.HexColor('#64748B'))
-                self.drawString(1.0*cm, 0.7*cm, "DrillData — Sistema Digital de Sondagem Mineral")
                 self.drawRightString(28.7*cm, 0.7*cm, f"Página {self._pageNumber} de {num_pages}")
                 super().showPage()
             super().save()
@@ -359,7 +359,7 @@ else:
     st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
 
     # ==========================================
-    # 1. CABEÇALHO COMPLETO DO PROJETO & EQUIPE TÉCNICA NO PDF
+    # 1. CABEÇALHO COMPLETO DO PROJETO & EQUIPE TÉCNICA
     # ==========================================
     if img_logo_pil:
         logo_buf = io.BytesIO()
@@ -387,7 +387,6 @@ else:
         ('LEFTPADDING', (0,0), (-1,-1), 8),
     ]))
 
-    # TODOS OS DADOS DO CABEÇALHO E GPS INCLUÍDOS AQUI:
     meta_grid = [
         [
             Paragraph(f"<b>Empresa:</b> {empresa if empresa else '-'}", st_meta_lbl), 
@@ -458,7 +457,7 @@ else:
     elements.append(Spacer(1, 6))
 
     # ==========================================
-    # 2. TABELA PRINCIPAL DE MANOBRAS (28.1 CM DE LARGURA)
+    # 2. TABELA PRINCIPAL DE MANOBRAS
     # ==========================================
     pdf_table_rows = [[
         Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
