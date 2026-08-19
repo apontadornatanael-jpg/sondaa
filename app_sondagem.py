@@ -31,7 +31,7 @@ st.markdown("""
 
 # --- DEFINIÇÃO DA LOGOMARCA FIXA ---
 # Nome exato da imagem que está salva no seu repositório do GitHub
-CAMINHO_LOGO_FIXO = "boa_fortuna.jpg"
+CAMINHO_LOGO_FIXO = "boa fortuna.jpg"
 
 # --- CONTROLE DE AUTENTICAÇÃO / LOGIN ---
 if 'autenticado' not in st.session_state:
