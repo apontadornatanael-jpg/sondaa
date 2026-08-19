@@ -14,7 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.graphics.shapes import Drawing, Polygon, Group
 
 # --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
-st.set_page_config(page_title="DrillData - Relatório de Sondagem", layout="wide")
+st.set_page_config(page_title="Relatório de Sondagem", layout="wide")
 
 st.markdown("""
     <style>
@@ -315,7 +315,6 @@ else:
             num_pages = len(self._saved_page_states)
             for state in self._saved_page_states:
                 self.__dict__.update(state)
-                # Apenas numeração de página limpa e direta
                 self.setFont("Helvetica", 8)
                 self.setFillColor(colors.HexColor('#64748B'))
                 self.drawRightString(28.7*cm, 0.7*cm, f"Página {self._pageNumber} de {num_pages}")
@@ -323,7 +322,7 @@ else:
             super().save()
 
     def draw_drilldata_logo():
-        d = Drawing(26, 26)
+        d = Drawing(30, 30)
         g = Group()
         g.add(Polygon([0, 4, 6, 24, 10, 24, 4, 4], fillColor=colors.HexColor('#0EA5E9'), strokeColor=None))
         g.add(Polygon([7, 0, 13, 20, 17, 20, 11, 0], fillColor=colors.HexColor('#0284C7'), strokeColor=None))
@@ -340,10 +339,7 @@ else:
     elements = []
 
     # Estilos de Texto PDF
-    st_title = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=13, leading=15, textColor=colors.HexColor('#0EA5E9'))
-    st_subtitle = ParagraphStyle('H2', fontName='Helvetica', fontSize=7.5, leading=9, textColor=colors.HexColor('#94A3B8'))
     st_meta_lbl = ParagraphStyle('ML', fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#0F172A'))
-
     st_kpi_lbl = ParagraphStyle('KL', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#475569'))
     st_kpi_val = ParagraphStyle('KV', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=0)
 
@@ -355,36 +351,30 @@ else:
 
     st_obs_title = ParagraphStyle('OBST', fontName='Helvetica-Bold', fontSize=7.5, leading=9, textColor=colors.HexColor('#0F172A'))
     st_obs_body = ParagraphStyle('OBSB', fontName='Helvetica', fontSize=7, leading=9, textColor=colors.HexColor('#334155'))
-
     st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
 
     # ==========================================
-    # 1. CABEÇALHO COMPLETO DO PROJETO & EQUIPE TÉCNICA
+    # 1. CABEÇALHO DO PROJETO (APENAS A LOGO DA EMPRESA)
     # ==========================================
     if img_logo_pil:
         logo_buf = io.BytesIO()
         img_logo_pil.convert("RGB").save(logo_buf, format="JPEG")
         logo_buf.seek(0)
-        logo_element = RLImage(logo_buf, width=1.5*cm, height=1.1*cm)
+        # Redimensiona a imagem para caber na caixa de cabeçalho
+        logo_element = RLImage(logo_buf, width=8.5*cm, height=1.5*cm)
     else:
         logo_element = draw_drilldata_logo()
 
-    h_text_cell = [
-        Paragraph("<b>DRILLDATA</b>", st_title),
-        Paragraph("Relatório Técnico & Boletim Diário de Sondagem", st_subtitle)
-    ]
-
-    header_left_box = Table([[logo_element, h_text_cell]], colWidths=[1.7*cm, 7.5*cm])
-    header_left_box.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
-    ]))
-
-    t_h_left = Table([[header_left_box]], colWidths=[9.4*cm])
+    # Bloco escuro contendo EXCLUSIVAMENTE a logomarca
+    t_h_left = Table([[logo_element]], colWidths=[9.4*cm])
     t_h_left.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-        ('TOPPADDING', (0,0), (-1,-1), 8), ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 4), 
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 4),
+        ('RIGHTPADDING', (0,0), (-1,-1), 4),
     ]))
 
     meta_grid = [
@@ -654,7 +644,7 @@ else:
     st.download_button(
         "📄 Baixar Relatório PDF Atualizado (.pdf)",
         data=buf_pdf.getvalue(),
-        file_name=f"Relatorio_DrillData_{furo_id if furo_id else 'Sondagem'}.pdf",
+        file_name=f"Relatorio_{furo_id if furo_id else 'Sondagem'}.pdf",
         mime="application/pdf",
         use_container_width=True
     )
