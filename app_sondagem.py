@@ -169,7 +169,7 @@ else:
     prox_de = itens[-1]['Até (m)'] if itens else 0.0
     prox_ate = round(prox_de + 1.5, 2)
 
-    col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+    col_m1, col_m2, col_m3, col_m4, col_m5, col_m6 = st.columns(6)
     with col_m1:
         de = st.number_input("De (m)", value=float(prox_de), step=0.5, format="%.2f")
     with col_m2:
@@ -179,6 +179,8 @@ else:
     with col_m4:
         num_caixa_str = st.text_input("Nº da Caixa", value=itens[-1]['Nº Cx'] if itens else "01")
     with col_m5:
+        horas_trabalhadas = st.number_input("Horas Trab. (h)", value=1.0, step=0.5, format="%.1f")
+    with col_m6:
         horas_parado = st.number_input("Horas Parado (h)", value=0.0, step=0.5, format="%.1f")
 
     col_h1, col_h2, col_l1 = st.columns([1, 2, 3])
@@ -245,6 +247,7 @@ else:
                 "Recup. (m)": rec,
                 "Recup. (%)": pct_rec,
                 "Nº Cx": num_caixa_str,
+                "Trabalhado": horas_trabalhadas,
                 "Parado": horas_parado,
                 "Motivo Parada": motivo_parada,
                 "Descrição Litológica / Observações": litologia_obs,
@@ -274,12 +277,14 @@ else:
         progresso_total = df['Avanço (m)'].sum()
         recup_tot_m = df['Recup. (m)'].sum()
         media_rec = round(df['Recup. (%)'].mean(), 1)
+        total_trabalhado = df['Trabalhado'].sum()
         total_paradas = df['Parado'].sum()
         ult_cx = df['Nº Cx'].iloc[-1]
     else:
         progresso_total = 0.0
         recup_tot_m = 0.0
         media_rec = 0.0
+        total_trabalhado = 0.0
         total_paradas = 0.0
         ult_cx = "-"
 
@@ -409,22 +414,23 @@ else:
         v_style = ParagraphStyle('KVc', parent=st_kpi_val, textColor=colors.HexColor(color_hex))
         p_t = Paragraph(title, st_kpi_lbl)
         p_v = Paragraph(value, v_style)
-        t = Table([[p_t], [p_v]], colWidths=[6.7*cm])
+        t = Table([[p_t], [p_v]], colWidths=[5.3*cm])
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
             ('LINELEFT', (0,0), (0,-1), 3.5, colors.HexColor(color_hex)),
             ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
             ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING', (0,0), (-1,-1), 6),
         ]))
         return t
 
     k1 = create_kpi_card("PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "#0284C7")
     k2 = create_kpi_card("MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %", "#059669")
-    k3 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h".replace('.', ','), "#DC2626")
-    k4 = create_kpi_card("CONSUMO TOTAL DIESEL", f"{diesel_input} L", "#D97706")
+    k3 = create_kpi_card("TOTAL HORAS TRABALHADAS", f"{total_trabalhado:.1f} h".replace('.', ','), "#16A34A")
+    k4 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h".replace('.', ','), "#DC2626")
+    k5 = create_kpi_card("CONSUMO TOTAL DIESEL", f"{diesel_input} L", "#D97706")
 
-    kpi_bar = Table([[k1, k2, k3, k4]], colWidths=[7.0*cm]*4)
+    kpi_bar = Table([[k1, k2, k3, k4, k5]], colWidths=[5.6*cm]*5)
     kpi_bar.setStyle(TableStyle([
         ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
@@ -438,7 +444,7 @@ else:
     pdf_table_rows = [[
         Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
         Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
-        Paragraph("Nº Cx", st_th), Paragraph("Parado", st_th), Paragraph("Motivo Parada", st_th), Paragraph("Descrição Litológica / Observações", st_th)
+        Paragraph("Nº Cx", st_th), Paragraph("Trab.", st_th), Paragraph("Parado", st_th), Paragraph("Motivo Parada", st_th), Paragraph("Descrição Litológica / Observações", st_th)
     ]]
 
     if not df.empty:
@@ -448,11 +454,12 @@ else:
                 Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
                 Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
                 Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
-                Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td),
-                Paragraph(r['Motivo Parada'], st_td_left), Paragraph(r['Descrição Litológica / Observações'], st_td_left)
+                Paragraph(str(r['Nº Cx']), st_td), Paragraph(f"{r['Trabalhado']:.1f} h".replace('.', ','), st_td),
+                Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td), Paragraph(r['Motivo Parada'], st_td_left),
+                Paragraph(r['Descrição Litológica / Observações'], st_td_left)
             ])
 
-    col_widths = [0.8*cm, 2.1*cm, 1.3*cm, 1.3*cm, 1.6*cm, 1.8*cm, 1.6*cm, 1.6*cm, 1.1*cm, 1.2*cm, 3.2*cm, 10.5*cm]
+    col_widths = [0.8*cm, 2.0*cm, 1.2*cm, 1.2*cm, 1.5*cm, 1.7*cm, 1.5*cm, 1.5*cm, 1.1*cm, 1.1*cm, 1.1*cm, 2.8*cm, 8.6*cm]
 
     t_main = Table(pdf_table_rows, colWidths=col_widths, repeatRows=1)
     t_main.setStyle(TableStyle([
@@ -470,8 +477,9 @@ else:
         Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), Paragraph("", st_td), Paragraph("", st_td), Paragraph("", st_td),
         Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
         Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
-        Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td),
-        Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left), Paragraph("Furo em andamento/finalizado.", st_td_left)
+        Paragraph(f"<b>{ult_cx}</b>", st_td), Paragraph(f"<b>{total_trabalhado:.1f} h</b>".replace('.', ','), st_td),
+        Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td), Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left),
+        Paragraph("Furo em andamento/finalizado.", st_td_left)
     ]]
     t_tot = Table(totals_row, colWidths=col_widths)
     t_tot.setStyle(TableStyle([
