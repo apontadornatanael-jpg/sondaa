@@ -21,37 +21,269 @@ from reportlab.pdfgen import canvas
 from reportlab.graphics.shapes import Drawing, Polygon, Group
 
 # --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
-st.set_page_config(page_title="Relatório de Sondagem", layout="wide")
+st.set_page_config(page_title="Relatório de Sondagem - Boa Fortuna", layout="wide")
 
+# --- PALETA DE CORES BASEADA NA LOGO BOA FORTUNA ---
 st.markdown("""
 <style>
-:root{--dd-bg:#06111f;--dd-panel:#0b1b2b;--dd-border:#1f3a52;--dd-text:#e6eef7;--dd-muted:#8da4b8;--dd-blue:#1593ff;--dd-cyan:#22d3ee;--dd-green:#22c55e;--dd-orange:#f59e0b;--dd-red:#ef4444;--dd-purple:#a855f7}
-.stApp{background:radial-gradient(circle at 80% 0%,rgba(21,147,255,.08),transparent 28%),linear-gradient(135deg,#06111f 0%,#081522 45%,#06101c 100%);color:var(--dd-text)}
-.block-container{max-width:1500px!important;padding:1.15rem 1.45rem 2rem!important}
-#MainMenu,header,footer,[data-testid="stStatusWidget"],button[title="Manage app"]{visibility:hidden!important;display:none!important}
-section[data-testid="stSidebar"]{background:linear-gradient(180deg,#071523 0%,#091c2e 100%)!important;border-right:1px solid #18354d}
-section[data-testid="stSidebar"]>div{padding-top:1rem}
-section[data-testid="stSidebar"] .stButton button{background:#0d2134;border:1px solid #24435b;color:#dbeafe;border-radius:8px;font-weight:600}
-section[data-testid="stSidebar"] .stButton button:hover{border-color:var(--dd-blue);background:#10314c}
-.dd-side-nav{display:flex;flex-direction:column;gap:7px;margin:8px 0 14px}
-.dd-side-nav a{display:block;text-decoration:none!important;color:#dbeafe!important;background:#0b1d2f;border:1px solid #1d3a51;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:700;transition:.15s}
-.dd-side-nav a:hover{background:#0e3150;border-color:#1593ff;color:white!important;transform:translateX(2px)}
-.dd-anchor{scroll-margin-top:20px}
+:root {
+    --bf-bg: #0b1511;           /* Fundo escuro levemente esverdeado */
+    --bf-panel: #12221b;        /* Painéis e cards internos */
+    --bf-border: #224234;       /* Bordas de divisores e inputs */
+    --bf-text: #e8f5e9;         /* Texto principal */
+    --bf-muted: #81c784;        /* Texto secundário */
+    --bf-green: #2e7d32;        /* Verde institucional */
+    --bf-green-light: #4caf50;  /* Verde destaque */
+    --bf-gold: #d4af37;         /* Dourado / Amarelo da logo */
+    --bf-blue: #0288d1;         /* Azul complementar da logo */
+    --bf-red: #e53935;          /* Alertas / Erros */
+}
 
-h1,h2,h3,h4,p,label,.stMarkdown{color:var(--dd-text)!important}h1{font-size:2rem!important;font-weight:800!important;letter-spacing:-.03em}h2,h3{font-weight:750!important}
-.stTextInput input,.stNumberInput input,.stTextArea textarea,.stSelectbox div[data-baseweb="select"]>div,.stDateInput input{background:#0b1b2b!important;color:#eef6ff!important;border:1px solid #27465f!important;border-radius:8px!important}
-.stTextInput input:focus,.stNumberInput input:focus,.stTextArea textarea:focus,.stDateInput input:focus{border-color:var(--dd-blue)!important;box-shadow:0 0 0 1px var(--dd-blue)!important}
-.stButton>button,.stDownloadButton>button{border-radius:8px!important;border:1px solid #28516f!important;background:#0c2539!important;color:#eaf4ff!important;font-weight:700!important;min-height:40px}
-.stButton>button[kind="primary"],.stButton>button:hover,.stDownloadButton>button:hover{background:linear-gradient(90deg,#087bd9,#1593ff)!important;border-color:#1593ff!important;color:white!important}
-[data-testid="stExpander"]{background:#0b1b2b!important;border:1px solid var(--dd-border)!important;border-radius:12px!important}
-button[data-baseweb="tab"]{color:#91a9bd!important}button[data-baseweb="tab"][aria-selected="true"]{color:#39a7ff!important}
-[data-testid="stDataFrame"]{border:1px solid #1e3b53!important;border-radius:10px!important;overflow:hidden!important}
-.dd-kpi{background:linear-gradient(145deg,#0d2031,#0a1827);border:1px solid #1d3a51;border-radius:11px;padding:15px 17px;min-height:112px;box-shadow:0 7px 24px rgba(0,0,0,.20)}
-.dd-kpi-label{color:#9bb0c3;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.dd-kpi-value{margin-top:7px;font-size:28px;line-height:1;font-weight:850}.dd-kpi-sub{margin-top:8px;color:#6f879b;font-size:11px}
-.dd-blue{color:#1593ff}.dd-green{color:#22c55e}.dd-cyan{color:#22d3ee}.dd-orange{color:#f59e0b}.dd-red{color:#ef4444}.dd-purple{color:#a855f7}
-.dd-section{background:linear-gradient(145deg,rgba(12,31,48,.96),rgba(8,23,36,.96));border:1px solid #1b374e;border-radius:12px;padding:16px 18px;margin:10px 0}.dd-section-title{font-size:15px;font-weight:800;color:#e8f2fb;margin-bottom:12px;letter-spacing:.02em}
-.dd-topline{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}.dd-title{font-size:30px;font-weight:850;color:#f3f8fc;letter-spacing:-.035em}.dd-subtitle{color:#7891a6;font-size:13px;margin-top:3px}.dd-status{display:inline-block;padding:5px 10px;border-radius:20px;background:rgba(34,197,94,.13);border:1px solid rgba(34,197,94,.3);color:#4ade80;font-size:11px;font-weight:800}
-div[data-testid="stMetric"]{background:#0b1b2b;border:1px solid #1c3a51;border-radius:10px;padding:12px}div[data-testid="stMetricLabel"]{color:#8fa6b9!important}div[data-testid="stMetricValue"]{color:#edf6ff!important}.stAlert{background:#0b1b2b!important;border:1px solid #24455e!important}hr{border-color:#19354b!important}
+/* Fundo Principal da Aplicação */
+.stApp {
+    background: radial-gradient(circle at 80% 0%, rgba(76, 175, 80, 0.12), transparent 35%),
+                linear-gradient(135deg, #0b1511 0%, #10211a 50%, #08100d 100%);
+    color: var(--bf-text);
+}
+
+.block-container {
+    max-width: 1500px !important;
+    padding: 1.15rem 1.45rem 2rem !important;
+}
+
+#MainMenu, header, footer, [data-testid="stStatusWidget"], button[title="Manage app"] {
+    visibility: hidden !important;
+    display: none !important;
+}
+
+/* Sidebar / Menu Lateral */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0d1e18 0%, #08120e 100%) !important;
+    border-right: 1px solid var(--bf-border);
+}
+
+section[data-testid="stSidebar"] > div {
+    padding-top: 1rem;
+}
+
+section[data-testid="stSidebar"] .stButton button {
+    background: #142a20;
+    border: 1px solid #2e5944;
+    color: #e8f5e9;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+section[data-testid="stSidebar"] .stButton button:hover {
+    border-color: var(--bf-gold);
+    background: #1e3d2f;
+}
+
+.dd-side-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin: 8px 0 14px;
+}
+
+.dd-side-nav a {
+    display: block;
+    text-decoration: none !important;
+    color: #e8f5e9 !important;
+    background: #12221b;
+    border: 1px solid #224234;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    transition: .15s;
+}
+
+.dd-side-nav a:hover {
+    background: #1b382c;
+    border-color: var(--bf-gold);
+    color: #ffffff !important;
+    transform: translateX(2px);
+}
+
+.dd-anchor {
+    scroll-margin-top: 20px;
+}
+
+/* Tipografia e Entradas de Texto */
+h1, h2, h3, h4, p, label, .stMarkdown {
+    color: var(--bf-text) !important;
+}
+
+h1 {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -.03em;
+}
+
+h2, h3 {
+    font-weight: 750 !important;
+}
+
+.stTextInput input, .stNumberInput input, .stTextArea textarea, .stSelectbox div[data-baseweb="select"] > div, .stDateInput input {
+    background: var(--bf-panel) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--bf-border) !important;
+    border-radius: 8px !important;
+}
+
+.stTextInput input:focus, .stNumberInput input:focus, .stTextArea textarea:focus, .stDateInput input:focus {
+    border-color: var(--bf-gold) !important;
+    box-shadow: 0 0 0 1px var(--bf-gold) !important;
+}
+
+/* Botões */
+.stButton > button, .stDownloadButton > button {
+    border-radius: 8px !important;
+    border: 1px solid #2b5240 !important;
+    background: #152b21 !important;
+    color: #e8f5e9 !important;
+    font-weight: 700 !important;
+    min-height: 40px;
+}
+
+.stButton > button[kind="primary"], .stButton > button:hover, .stDownloadButton > button:hover {
+    background: linear-gradient(90deg, #1b5e20, #2e7d32) !important;
+    border-color: var(--bf-gold) !important;
+    color: #ffffff !important;
+}
+
+[data-testid="stExpander"] {
+    background: var(--bf-panel) !important;
+    border: 1px solid var(--bf-border) !important;
+    border-radius: 12px !important;
+}
+
+button[data-baseweb="tab"] {
+    color: #a5d6a7 !important;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: var(--bf-gold) !important;
+    border-bottom-color: var(--bf-gold) !important;
+}
+
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--bf-border) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+}
+
+/* Cards KPI */
+.dd-kpi {
+    background: linear-gradient(145deg, #14281f, #0d1a14);
+    border: 1px solid #204032;
+    border-radius: 11px;
+    padding: 15px 17px;
+    min-height: 112px;
+    box-shadow: 0 7px 24px rgba(0, 0, 0, .30);
+}
+
+.dd-kpi-label {
+    color: #a5d6a7;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.dd-kpi-value {
+    margin-top: 7px;
+    font-size: 28px;
+    line-height: 1;
+    font-weight: 850;
+}
+
+.dd-kpi-sub {
+    margin-top: 8px;
+    color: #81c784;
+    font-size: 11px;
+}
+
+/* Classes de Cores para KPIs */
+.dd-blue { color: var(--bf-blue) !important; }
+.dd-green { color: var(--bf-green-light) !important; }
+.dd-cyan { color: #80deea !important; }
+.dd-orange { color: var(--bf-gold) !important; }
+.dd-red { color: var(--bf-red) !important; }
+.dd-purple { color: #ce93d8 !important; }
+
+.dd-section {
+    background: linear-gradient(145deg, rgba(18, 34, 27, .96), rgba(10, 20, 16, .96));
+    border: 1px solid #224234;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin: 10px 0;
+}
+
+.dd-section-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--bf-gold);
+    margin-bottom: 12px;
+    letter-spacing: .02em;
+}
+
+.dd-topline {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.dd-title {
+    font-size: 30px;
+    font-weight: 850;
+    color: #ffffff;
+    letter-spacing: -.035em;
+}
+
+.dd-subtitle {
+    color: #a5d6a7;
+    font-size: 13px;
+    margin-top: 3px;
+}
+
+.dd-status {
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: rgba(76, 175, 80, 0.15);
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    color: #66bb6a;
+    font-size: 11px;
+    font-weight: 800;
+}
+
+div[data-testid="stMetric"] {
+    background: var(--bf-panel);
+    border: 1px solid var(--bf-border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+div[data-testid="stMetricLabel"] {
+    color: #a5d6a7 !important;
+}
+
+div[data-testid="stMetricValue"] {
+    color: #ffffff !important;
+}
+
+.stAlert {
+    background: var(--bf-panel) !important;
+    border: 1px solid var(--bf-border) !important;
+}
+
+hr {
+    border-color: var(--bf-border) !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -72,7 +304,7 @@ def login_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("## **DRILLDATA** — Acesso ao Sistema")
+        st.markdown("## **BOA FORTUNA** — Acesso ao Sistema")
         st.markdown("Por favor, insira suas credenciais para continuar.")
         
         with st.form("login_form"):
@@ -97,7 +329,7 @@ else:
         if os.path.exists(CAMINHO_LOGO_FIXO):
             st.image(CAMINHO_LOGO_FIXO, use_container_width=True)
         else:
-            st.markdown("## ⛏️ DRILLDATA")
+            st.markdown("## ⛏️ BOA FORTUNA")
 
         st.markdown("### MENU")
         st.markdown("""
@@ -163,7 +395,7 @@ else:
 
     st.markdown("""
     <div class="dd-topline">
-      <div><div class="dd-title">DRILLDATA — Sistema Digital de Sondagem Mineral</div>
+      <div><div class="dd-title">BOA FORTUNA — Sistema Digital de Sondagem Mineral</div>
       <div class="dd-subtitle">Acompanhe o desempenho da perfuração, recuperação, horas operacionais e localização do furo.</div></div>
       <div><span class="dd-status">● SISTEMA OPERACIONAL</span></div>
     </div>
@@ -197,7 +429,7 @@ else:
     with col_gest:
         col_g1, col_g2, col_g3 = st.columns(3)
         with col_g1:
-            empresa = st.text_input("Empresa / Mineradora", value="")
+            empresa = st.text_input("Empresa / Mineradora", value="Boa Fortuna")
             nome_projeto = st.text_input("Nome do Projeto", value="")
         with col_g2:
             coordenador = st.text_input("Coordenador do Projeto", value="")
@@ -365,18 +597,18 @@ else:
     media_avanco = (progresso_total / len(df)) if not df.empty else 0.0
 
     st.markdown("<div class=\"dd-section-title\">VISÃO GERAL DA OPERAÇÃO</div>", unsafe_allow_html=True)
-    k1,k2,k3,k4,k5,k6=st.columns(6)
-    cards=[
-      (k1,"PROGRESSO TOTAL PERFURADO",f"{progresso_total:.2f} m","Avanço acumulado","dd-blue"),
-      (k2,"MÉDIA DE RECUPERAÇÃO",f"{media_rec:.1f}%","Recuperação média","dd-green"),
-      (k3,"HORAS TRABALHADAS",f"{total_trabalhado:.1f} h","Tempo produtivo","dd-cyan"),
-      (k4,"HORAS PARADAS",f"{total_paradas:.1f} h","Tempo improdutivo","dd-orange"),
-      (k5,"CONSUMO TOTAL DIESEL",f"{diesel_input} L","Consumo registrado","dd-red"),
-      (k6,"EFICIÊNCIA OPERACIONAL",f"{eficiencia_operacional:.1f}%","Produtividade horária","dd-purple")]
-    for col,title,value,sub,color in cards:
+    k1, k2, k3, k4, k5, k6 = st.columns(6)
+    cards = [
+      (k1, "PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "Avanço acumulado", "dd-blue"),
+      (k2, "MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f}%", "Recuperação média", "dd-green"),
+      (k3, "HORAS TRABALHADAS", f"{total_trabalhado:.1f} h", "Tempo produtivo", "dd-cyan"),
+      (k4, "HORAS PARADAS", f"{total_paradas:.1f} h", "Tempo improdutivo", "dd-orange"),
+      (k5, "CONSUMO TOTAL DIESEL", f"{diesel_input} L", "Consumo registrado", "dd-red"),
+      (k6, "EFICIÊNCIA OPERACIONAL", f"{eficiencia_operacional:.1f}%", "Produtividade horária", "dd-purple")]
+    for col, title, value, sub, color in cards:
         with col:
-            st.markdown(f"<div class=\"dd-kpi\"><div class=\"dd-kpi-label\">{title}</div><div class=\"dd-kpi-value {color}\">{value}</div><div class=\"dd-kpi-sub\">{sub}</div></div>",unsafe_allow_html=True)
-    st.markdown("<br>",unsafe_allow_html=True)
+            st.markdown(f"<div class=\"dd-kpi\"><div class=\"dd-kpi-label\">{title}</div><div class=\"dd-kpi-value {color}\">{value}</div><div class=\"dd-kpi-sub\">{sub}</div></div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("---")
     st.subheader("Tabela do Boletim Diário")
     if not df.empty:
@@ -395,11 +627,11 @@ else:
     st.markdown("---")
     st.header("3. Visualização & Análise Digital")
 
-    s1,s2,s3,s4=st.columns(4)
-    with s1: st.metric("FUROS / MANOBRAS",len(df),"registros")
-    with s2: st.metric("AVANÇO MÉDIO",f"{media_avanco:.2f} m","por manobra")
-    with s3: st.metric("RECUPERAÇÃO TOTAL",f"{recup_tot_m:.2f} m","testemunho")
-    with s4: st.metric("ÚLTIMA CAIXA",str(ult_cx),"registro atual")
+    s1, s2, s3, s4 = st.columns(4)
+    with s1: st.metric("FUROS / MANOBRAS", len(df), "registros")
+    with s2: st.metric("AVANÇO MÉDIO", f"{media_avanco:.2f} m", "por manobra")
+    with s3: st.metric("RECUPERAÇÃO TOTAL", f"{recup_tot_m:.2f} m", "testemunho")
+    with s4: st.metric("ÚLTIMA CAIXA", str(ult_cx), "registro atual")
 
     col_mapa, col_grafico = st.columns([1, 1])
 
@@ -413,7 +645,7 @@ else:
             [latitude, longitude],
             popup=f"Furo: {furo_id}<br>Projeto: {nome_projeto}",
             tooltip=f"Furo {furo_id}",
-            icon=folium.Icon(color="red", icon="info-sign")
+            icon=folium.Icon(color="green", icon="info-sign")
         ).add_to(m)
         st_folium(m, width="100%", height=350)
 
@@ -427,7 +659,7 @@ else:
                 barmode="group",
                 title="Avanço vs. Recuperação por Manobra",
                 labels={"value": "Metros (m)", "Item": "Nº da Manobra", "variable": "Métrica"},
-                color_discrete_sequence=["#0284C7", "#059669"]
+                color_discrete_sequence=["#0288d1", "#2e7d32"]  # Cores ajustadas: Azul e Verde da Logo
             )
             fig_rec.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig_rec, use_container_width=True)
@@ -440,422 +672,11 @@ else:
             names=["Trabalhadas", "Paradas"],
             values=[total_trabalhado, total_paradas],
             title="Distribuição das Horas de Trabalho",
-            color_discrete_sequence=["#16A34A", "#DC2626"],
+            color_discrete_sequence=["#2e7d32", "#d4af37"],  # Verde e Dourado
             hole=0.4
         )
         fig_horas.update_layout(height=300)
         st.plotly_chart(fig_horas, use_container_width=True)
 
     st.markdown("---")
-
     st.markdown('<div id="relatorio" class="dd-anchor"></div>', unsafe_allow_html=True)
-
-    # ==========================================
-    # GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS (REPORTLAB)
-    # ==========================================
-    class DrillDataCanvas(canvas.Canvas):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self._saved_page_states = []
-
-        def showPage(self):
-            self._saved_page_states.append(dict(self.__dict__))
-            self._startPage()
-
-        def save(self):
-            num_pages = len(self._saved_page_states)
-            for state in self._saved_page_states:
-                self.__dict__.update(state)
-                self.setFont("Helvetica", 8)
-                self.setFillColor(colors.HexColor('#64748B'))
-                self.drawRightString(28.7*cm, 0.7*cm, f"Página {self._pageNumber} de {num_pages}")
-                super().showPage()
-            super().save()
-
-    def draw_drilldata_logo():
-        d = Drawing(30, 30)
-        g = Group()
-        g.add(Polygon([0, 4, 6, 24, 10, 24, 4, 4], fillColor=colors.HexColor('#0EA5E9'), strokeColor=None))
-        g.add(Polygon([7, 0, 13, 20, 17, 20, 11, 0], fillColor=colors.HexColor('#0284C7'), strokeColor=None))
-        g.add(Polygon([14, 0, 20, 16, 24, 16, 18, 0], fillColor=colors.HexColor('#0369A1'), strokeColor=None))
-        d.add(g)
-        return d
-
-    buf_pdf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf_pdf, pagesize=landscape(A4),
-        leftMargin=0.8*cm, rightMargin=0.8*cm,
-        topMargin=0.8*cm, bottomMargin=1.0*cm
-    )
-    elements = []
-
-    # Estilos de Texto PDF
-    st_meta_lbl = ParagraphStyle('ML', fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=colors.HexColor('#0F172A'))
-    st_kpi_lbl = ParagraphStyle('KL', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#475569'))
-    st_kpi_val = ParagraphStyle('KV', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=0)
-
-    st_th = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.white)
-    st_td = ParagraphStyle('TD', fontName='Helvetica', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#0F172A'))
-    st_td_left = ParagraphStyle('TDL', fontName='Helvetica', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
-    st_td_rec = ParagraphStyle('TDR', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=1, textColor=colors.HexColor('#059669'))
-    st_tot = ParagraphStyle('TOT', fontName='Helvetica-Bold', fontSize=6.5, leading=8, alignment=0, textColor=colors.HexColor('#0F172A'))
-
-    st_obs_title = ParagraphStyle('OBST', fontName='Helvetica-Bold', fontSize=7.5, leading=9, textColor=colors.HexColor('#0F172A'))
-    st_obs_body = ParagraphStyle('OBSB', fontName='Helvetica', fontSize=7, leading=9, textColor=colors.HexColor('#334155'))
-    st_page2_title = ParagraphStyle('P2T', fontName='Helvetica-Bold', fontSize=11, leading=13, textColor=colors.HexColor('#0F172A'))
-
-    # ==========================================
-    # 1. CABEÇALHO DO PROJETO (PDF)
-    # ==========================================
-    if img_logo_pil:
-        logo_buf = io.BytesIO()
-        img_logo_pil.convert("RGB").save(logo_buf, format="JPEG")
-        logo_buf.seek(0)
-        logo_element = RLImage(logo_buf, width=8.5*cm, height=1.5*cm)
-    else:
-        logo_element = draw_drilldata_logo()
-
-    t_h_left = Table([[logo_element]], colWidths=[9.4*cm])
-    t_h_left.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#0F172A')),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 4), 
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ('LEFTPADDING', (0,0), (-1,-1), 4),
-        ('RIGHTPADDING', (0,0), (-1,-1), 4),
-    ]))
-
-    meta_grid = [
-        [
-            Paragraph(f"<b>Empresa:</b> {empresa if empresa else '-'}", st_meta_lbl), 
-            Paragraph(f"<b>Furo:</b> {furo_id}", st_meta_lbl), 
-            Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m/%Y')} a {dt_termino.strftime('%d/%m/%Y')}", st_meta_lbl)
-        ],
-        [
-            Paragraph(f"<b>Projeto:</b> {nome_projeto if nome_projeto else '-'}", st_meta_lbl), 
-            Paragraph(f"<b>Diâmetro:</b> {diametro}", st_meta_lbl), 
-            Paragraph(f"<b>Coordenadas:</b> Lat: {latitude:.6f} | Long: {longitude:.6f}", st_meta_lbl)
-        ],
-        [
-            Paragraph(f"<b>Coordenador:</b> {coordenador if coordenador else '-'}", st_meta_lbl), 
-            Paragraph(f"<b>Supervisor:</b> {supervisor if supervisor else '-'}", st_meta_lbl), 
-            Paragraph(f"<b>Datum:</b> {datum}", st_meta_lbl)
-        ],
-        [
-            Paragraph(f"<b>Geólogo:</b> {geologo if geologo else '-'}", st_meta_lbl), 
-            Paragraph(f"<b>Sondador/Equipe:</b> {sondador_equipe if sondador_equipe else '-'}", st_meta_lbl), 
-            Paragraph(f"<b>Inclin. / Azim.:</b> {inclinacao}° / {azimute}°", st_meta_lbl)
-        ]
-    ]
-    t_h_right = Table(meta_grid, colWidths=[6.3*cm, 6.3*cm, 6.1*cm])
-    t_h_right.setStyle(TableStyle([
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 2), ('BOTTOMPADDING', (0,0), (-1,-1), 2),
-        ('LEFTPADDING', (0,0), (-1,-1), 4),
-    ]))
-
-    header_full = Table([[t_h_left, t_h_right]], colWidths=[9.4*cm, 18.7*cm])
-    header_full.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
-        ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-    ]))
-    elements.append(header_full)
-    elements.append(Spacer(1, 6))
-
-    # CARDS DE KPIS
-    def create_kpi_card(title, value, color_hex):
-        v_style = ParagraphStyle('KVc', parent=st_kpi_val, textColor=colors.HexColor(color_hex))
-        p_t = Paragraph(title, st_kpi_lbl)
-        p_v = Paragraph(value, v_style)
-        t = Table([[p_t], [p_v]], colWidths=[5.3*cm])
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-            ('LINELEFT', (0,0), (0,-1), 3.5, colors.HexColor(color_hex)),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#E2E8F0')),
-            ('TOPPADDING', (0,0), (-1,-1), 3), ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-            ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ]))
-        return t
-
-    k1 = create_kpi_card("PROGRESSO TOTAL PERFURADO", f"{progresso_total:.2f} m", "#0284C7")
-    k2 = create_kpi_card("MÉDIA DE RECUPERAÇÃO", f"{media_rec:.1f} %", "#059669")
-    k3 = create_kpi_card("TOTAL HORAS TRABALHADAS", f"{total_trabalhado:.1f} h".replace('.', ','), "#16A34A")
-    k4 = create_kpi_card("TOTAL HORAS PARADAS", f"{total_paradas:.1f} h".replace('.', ','), "#DC2626")
-    k5 = create_kpi_card("CONSUMO TOTAL DIESEL", f"{diesel_input} L", "#D97706")
-
-    kpi_bar = Table([[k1, k2, k3, k4, k5]], colWidths=[5.62*cm]*5)
-    kpi_bar.setStyle(TableStyle([
-        ('LEFTPADDING', (0,0), (-1,-1), 0), ('RIGHTPADDING', (0,0), (-1,-1), 0),
-        ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-    ]))
-    elements.append(kpi_bar)
-    elements.append(Spacer(1, 6))
-
-    # ==========================================
-    # 2. TABELA PRINCIPAL DE MANOBRAS
-    # ==========================================
-    pdf_table_rows = [[
-        Paragraph("Item", st_th), Paragraph("Horário", st_th), Paragraph("De (m)", st_th), Paragraph("Até (m)", st_th),
-        Paragraph("Avanço (m)", st_th), Paragraph("Acumulado (m)", st_th), Paragraph("Recup. (m)", st_th), Paragraph("Recup. (%)", st_th),
-        Paragraph("Nº Cx", st_th), Paragraph("Trab.", st_th), Paragraph("Parado", st_th), Paragraph("Motivo Parada", st_th), Paragraph("Descrição Litológica / Observações", st_th)
-    ]]
-
-    if not df.empty:
-        for _, r in df.iterrows():
-            pdf_table_rows.append([
-                Paragraph(str(r['Item']), st_td), 
-                Paragraph(str(r['Horário']), st_td),
-                Paragraph(f"{r['De (m)']:.2f}".replace('.', ','), st_td), 
-                Paragraph(f"{r['Até (m)']:.2f}".replace('.', ','), st_td),
-                Paragraph(f"{r['Avanço (m)']:.2f}".replace('.', ','), st_td), 
-                Paragraph(f"{r['Acumulado (m)']:.2f}".replace('.', ','), st_td),
-                Paragraph(f"{r['Recup. (m)']:.2f}".replace('.', ','), st_td), 
-                Paragraph(f"{r['Recup. (%)']:.1f}%".replace('.', ','), st_td_rec),
-                Paragraph(str(r['Nº Cx']), st_td), 
-                Paragraph(f"{r['Trabalhado']:.1f} h".replace('.', ','), st_td),
-                Paragraph(f"{r['Parado']:.1f} h".replace('.', ','), st_td), 
-                Paragraph(str(r['Motivo Parada']), st_td_left),
-                Paragraph(str(r['Descrição Litológica / Observações']), st_td_left)
-            ])
-
-    col_widths = [
-        0.9*cm, 2.2*cm, 1.3*cm, 1.3*cm, 1.6*cm, 1.8*cm,
-        1.5*cm, 1.5*cm, 1.1*cm, 1.1*cm, 1.1*cm, 3.5*cm, 9.2*cm
-    ]
-
-    t_main = Table(pdf_table_rows, colWidths=col_widths, repeatRows=1)
-    t_main.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 3), 
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('LEFTPADDING', (0,0), (-1,-1), 1),
-        ('RIGHTPADDING', (0,0), (-1,-1), 1),
-    ]))
-    elements.append(t_main)
-
-    # ==========================================
-    # 3. LINHA DE TOTAIS E OBSERVAÇÕES
-    # ==========================================
-    totals_row = [[
-        Paragraph("TOTAIS / MÉDIAS OPERACIONAIS:", st_tot), "", "", "",
-        Paragraph(f"<b>{progresso_total:.2f} m</b>".replace('.', ','), st_td), 
-        Paragraph(f"<b>{(df['Acumulado (m)'].max() if not df.empty else 0.0):.2f} m</b>".replace('.', ','), st_td),
-        Paragraph(f"<b>{recup_tot_m:.2f} m</b>".replace('.', ','), st_td_rec), 
-        Paragraph(f"<b>{media_rec:.1f}%</b>".replace('.', ','), st_td_rec),
-        Paragraph(f"<b>{ult_cx}</b>", st_td), 
-        Paragraph(f"<b>{total_trabalhado:.1f} h</b>".replace('.', ','), st_td),
-        Paragraph(f"<b>{total_paradas:.1f} h</b>".replace('.', ','), st_td), 
-        Paragraph(f"<b>Diesel: {diesel_input} L</b>", st_td_left),
-        Paragraph("Furo em andamento/finalizado.", st_td_left)
-    ]]
-    
-    t_tot = Table(totals_row, colWidths=col_widths)
-    t_tot.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#E0F2FE')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('SPAN', (0, 0), (3, 0)),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('LINEABOVE', (0, 0), (-1, -1), 1.0, colors.HexColor('#0284C7')),
-        ('LINEBELOW', (0, 0), (-1, -1), 1.0, colors.HexColor('#0284C7')),
-        ('TOPPADDING', (0,0), (-1,-1), 3), 
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('LEFTPADDING', (0,0), (-1,-1), 1),
-        ('RIGHTPADDING', (0,0), (-1,-1), 1),
-    ]))
-
-    obs_content = [
-        [Paragraph("<b>OBSERVAÇÕES / NOTAS DE CAMPO</b>", st_obs_title)],
-        [Paragraph(obs_gerais_furo if obs_gerais_furo.strip() else "Nenhuma observação adicional registrada para este boletim.", st_obs_body)]
-    ]
-    t_obs = Table(obs_content, colWidths=[28.1*cm])
-    t_obs.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('LINELEFT', (0,0), (0,-1), 3.0, colors.HexColor('#0EA5E9')),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-        ('RIGHTPADDING', (0,0), (-1,-1), 8),
-    ]))
-
-    st_ass_nome = ParagraphStyle('AN', fontName='Helvetica-Bold', fontSize=7.5, leading=9, alignment=1, textColor=colors.HexColor('#0F172A'))
-    st_ass_cargo = ParagraphStyle('AC', fontName='Helvetica', fontSize=7, leading=8.5, alignment=1, textColor=colors.HexColor('#475569'))
-
-    ass_table = Table([
-        [Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome), Paragraph("__________________________________________", st_ass_nome)],
-        [Paragraph(f"<b>{sondador_equipe if sondador_equipe else 'Sondador / Equipe'}</b>", st_ass_nome), Paragraph(f"<b>{geologo if geologo else 'Geólogo Responsável'}</b>", st_ass_nome), Paragraph(f"<b>{empresa if empresa else 'Empresa / Cliente'}</b>", st_ass_nome)],
-        [Paragraph("Sondador / Operador Responsável", st_ass_cargo), Paragraph("Fiscalização de Campo / Geologia", st_ass_cargo), Paragraph("Supervisão de Operações", st_ass_cargo)]
-    ], colWidths=[9.36*cm, 9.36*cm, 9.36*cm])
-    ass_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER'), ('VALIGN', (0,0), (-1,-1), 'MIDDLE')]))
-
-    elements.append(KeepTogether([
-        t_tot,
-        Spacer(1, 6),
-        t_obs,
-        Spacer(1, 10),
-        ass_table
-    ]))
-
-    # ==========================================
-    # 4. ANEXO: REGISTRO FOTOGRÁFICO DE CAMPO
-    # ==========================================
-    elements.append(PageBreak())
-
-    p2_header = Table([[
-        Paragraph(f"<b>ANEXO: REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS — FURO {furo_id}</b>", st_page2_title),
-        Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_inicio.strftime('%d/%m/%Y')}", st_meta_lbl)
-    ]], colWidths=[18.0*cm, 10.1*cm])
-    p2_header.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-    ]))
-    elements.append(p2_header)
-    elements.append(Spacer(1, 10))
-
-    cards_de_fotos = []
-
-    for item in st.session_state['itens_sondagem']:
-        lista_fotos = item.get('Fotos', [])
-        total_fotos_manobra = len(lista_fotos)
-        
-        for idx_foto, img_pil in enumerate(lista_fotos):
-            img_buffer = io.BytesIO()
-            img_pil.convert('RGB').save(img_buffer, format='JPEG')
-            img_buffer.seek(0)
-            
-            rl_img = RLImage(img_buffer, width=8.5*cm, height=4.3*cm)
-            lbl_foto = f" ({idx_foto + 1}/{total_fotos_manobra})" if total_fotos_manobra > 1 else ""
-            caption = Paragraph(f"<b>Manobra {item['Item']}{lbl_foto}</b>: {item['De (m)']}m - {item['Até (m)']}m | Cx: {item['Nº Cx']}", st_td)
-            
-            cell_table = Table([[rl_img], [caption]], colWidths=[8.5*cm])
-            cell_table.setStyle(TableStyle([
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-                ('TOPPADDING', (0,0), (-1,-1), 3),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 3)
-            ]))
-            cards_de_fotos.append(cell_table)
-
-    if cards_de_fotos:
-        foto_rows = []
-        current_row = []
-        
-        for idx, card in enumerate(cards_de_fotos):
-            current_row.append(card)
-            if len(current_row) == 3 or idx == len(cards_de_fotos) - 1:
-                while len(current_row) < 3:
-                    current_row.append("")
-                foto_rows.append(current_row)
-                current_row = []
-                
-        grid_fotos = Table(foto_rows, colWidths=[9.36*cm, 9.36*cm, 9.36*cm])
-        grid_fotos.setStyle(TableStyle([
-            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-            ('LEFTPADDING', (0,0), (-1,-1), 2),
-            ('RIGHTPADDING', (0,0), (-1,-1), 2),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 8)
-        ]))
-        elements.append(grid_fotos)
-    else:
-        no_photo_box = Table([[Paragraph("Nenhum registro fotográfico foi anexado para este boletim de sondagem.", st_obs_body)]], colWidths=[28.1*cm])
-        no_photo_box.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('TOPPADDING', (0,0), (-1,-1), 15),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 15),
-        ]))
-        elements.append(no_photo_box)
-
-    # ==========================================
-    # 5. ANEXO: VISUALIZAÇÃO DIGITAL, GRÁFICOS E MAPA
-    # ==========================================
-    elements.append(PageBreak())
-
-    p3_header = Table([[
-        Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL, GRÁFICOS E GEOLOCALIZAÇÃO — FURO {furo_id}</b>", st_page2_title),
-        Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_inicio.strftime('%d/%m/%Y')}", st_meta_lbl)
-    ]], colWidths=[18.0*cm, 10.1*cm])
-    p3_header.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-    ]))
-    elements.append(p3_header)
-    elements.append(Spacer(1, 10))
-
-    # Tabela de Detalhes de Geolocalização
-    geo_info = [
-        [Paragraph("<b>PARÂMETRO DE LOCALIZAÇÃO</b>", st_th), Paragraph("<b>VALOR REGISTRADO</b>", st_th)],
-        [Paragraph("Latitude", st_td_left), Paragraph(f"{latitude:.6f}", st_td)],
-        [Paragraph("Longitude", st_td_left), Paragraph(f"{longitude:.6f}", st_td)],
-        [Paragraph("Datum Geodésico", st_td_left), Paragraph(f"{datum}", st_td)],
-        [Paragraph("Inclinação / Azimute", st_td_left), Paragraph(f"{inclinacao}° / {azimute}°", st_td)],
-    ]
-    t_geo = Table(geo_info, colWidths=[14.0*cm, 14.1*cm])
-    t_geo.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-    ]))
-    elements.append(t_geo)
-    elements.append(Spacer(1, 10))
-
-    # CONVERSÃO DOS GRÁFICOS DO PLOTLY EM IMAGEM PARA O PDF
-    graficos_elements = []
-
-    if fig_rec and not df.empty:
-        try:
-            img_bytes_rec = fig_rec.to_image(format="png", width=700, height=350)
-            rl_img_rec = RLImage(io.BytesIO(img_bytes_rec), width=13.5*cm, height=6.7*cm)
-        except Exception:
-            rl_img_rec = Paragraph("<b>Erro ao renderizar gráfico de Avanço vs. Recuperação. Verifique se a biblioteca 'kaleido' está instalada.</b>", st_obs_body)
-    else:
-        rl_img_rec = Paragraph("<b>Nenhum dado cadastrado para o gráfico de recuperação.</b>", st_obs_body)
-
-    if fig_horas and not df.empty:
-        try:
-            img_bytes_horas = fig_horas.to_image(format="png", width=700, height=350)
-            rl_img_horas = RLImage(io.BytesIO(img_bytes_horas), width=13.5*cm, height=6.7*cm)
-        except Exception:
-            rl_img_horas = Paragraph("<b>Erro ao renderizar gráfico de Horas Operacionais. Verifique se a biblioteca 'kaleido' está instalada.</b>", st_obs_body)
-    else:
-        rl_img_horas = Paragraph("<b>Nenhum dado cadastrado para o gráfico de horas.</b>", st_obs_body)
-
-    grid_graficos = Table([[rl_img_rec, rl_img_horas]], colWidths=[14.0*cm, 14.1*cm])
-    grid_graficos.setStyle(TableStyle([
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4)
-    ]))
-    elements.append(grid_graficos)
-
-    # ==========================================
-    # CONSTRUÇÃO FINAL DO PDF E BOTÃO DE DOWNLOAD
-    # ==========================================
-    doc.build(elements, canvasmaker=DrillDataCanvas)
-
-    st.download_button(
-        "Baixar Relatório PDF Atualizado (.pdf)",
-        data=buf_pdf.getvalue(),
-        file_name=f"Relatorio_{furo_id if furo_id else 'Sondagem'}.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
