@@ -697,17 +697,7 @@ else:
         ]))
         elements.append(no_photo_box)
 
-    doc.build(elements, canvasmaker=DrillDataCanvas)
-
-    st.download_button(
-        "Baixar Relatório PDF Atualizado (.pdf)",
-        data=buf_pdf.getvalue(),
-        file_name=f"Relatorio_{furo_id if furo_id else 'Sondagem'}.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
-
-# ==========================================
+    # ==========================================
     # 5. ANEXO: VISUALIZAÇÃO DIGITAL E MAPA
     # ==========================================
     elements.append(PageBreak())
@@ -725,44 +715,35 @@ else:
         ('LEFTPADDING', (0,0), (-1,-1), 8),
     ]))
     elements.append(p3_header)
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 10))
 
-    try:
-        # 1. Exportando Gráfico Plotly de Desempenho
-        if not df.empty:
-            # Converte a fig_rec (já existente) para PNG usando Kaleido
-            img_chart_bytes = fig_rec.to_image(format="png", width=900, height=350, scale=2)
-            rl_chart = RLImage(io.BytesIO(img_chart_bytes), width=18*cm, height=7*cm)
-            
-            elements.append(Paragraph("<b>1. Desempenho da Perfuração (Avanço vs. Recuperação)</b>", st_obs_title))
-            elements.append(Spacer(1, 5))
-            elements.append(rl_chart)
-            elements.append(Spacer(1, 15))
+    # Tabela de Detalhes de Geolocalização
+    geo_info = [
+        [Paragraph("<b>PARÂMETRO DE LOCALIZAÇÃO</b>", st_th), Paragraph("<b>VALOR REGISTRADO</b>", st_th)],
+        [Paragraph("Latitude", st_td_left), Paragraph(f"{latitude:.6f}", st_td)],
+        [Paragraph("Longitude", st_td_left), Paragraph(f"{longitude:.6f}", st_td)],
+        [Paragraph("Datum Geodésico", st_td_left), Paragraph(f"{datum}", st_td)],
+        [Paragraph("Inclinação / Azimute", st_td_left), Paragraph(f"{inclinacao}° / {azimute}°", st_td)],
+    ]
+    t_geo = Table(geo_info, colWidths=[14.0*cm, 14.1*cm])
+    t_geo.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    elements.append(t_geo)
 
-        # 2. Gerando Mapa Estático com Plotly e Exportando
-        fig_map_pdf = px.scatter_mapbox(
-            lat=[latitude], lon=[longitude],
-            zoom=14, mapbox_style="open-street-map"
-        )
-        fig_map_pdf.update_traces(marker=dict(size=14, color="red"))
-        fig_map_pdf.update_layout(
-            margin={"r":0,"t":0,"l":0,"b":0}, 
-            height=350, width=900,
-            showlegend=False
-        )
-        
-        img_map_bytes = fig_map_pdf.to_image(format="png", scale=2)
-        rl_map = RLImage(io.BytesIO(img_map_bytes), width=18*cm, height=7*cm)
-        
-        elements.append(Paragraph(f"<b>2. Localização GPS do Furo (Lat: {latitude:.6f} / Long: {longitude:.6f})</b>", st_obs_title))
-        elements.append(Spacer(1, 5))
-        elements.append(rl_map)
-
-    except Exception as e:
-        erro_msg = f"<b>Aviso:</b> Não foi possível gerar as imagens do mapa/gráfico no PDF. Certifique-se de ter instalado o pacote 'kaleido' (comando: pip install kaleido). Erro técnico: {e}"
-        elements.append(Paragraph(erro_msg, st_obs_body))
-
-    # --- FIM DO BLOCO NOVO ---
-
-    # A linha abaixo já existe no seu código, ela finaliza e gera o documento:
+    # ==========================================
+    # CONSTRUÇÃO FINAL DO PDF E BOTÃO DE DOWNLOAD
+    # ==========================================
     doc.build(elements, canvasmaker=DrillDataCanvas)
+
+    st.download_button(
+        "Baixar Relatório PDF Atualizado (.pdf)",
+        data=buf_pdf.getvalue(),
+        file_name=f"Relatorio_{furo_id if furo_id else 'Sondagem'}.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
