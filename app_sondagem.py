@@ -33,6 +33,11 @@ section[data-testid="stSidebar"]{background:linear-gradient(180deg,#071523 0%,#0
 section[data-testid="stSidebar"]>div{padding-top:1rem}
 section[data-testid="stSidebar"] .stButton button{background:#0d2134;border:1px solid #24435b;color:#dbeafe;border-radius:8px;font-weight:600}
 section[data-testid="stSidebar"] .stButton button:hover{border-color:var(--dd-blue);background:#10314c}
+.dd-side-nav{display:flex;flex-direction:column;gap:7px;margin:8px 0 14px}
+.dd-side-nav a{display:block;text-decoration:none!important;color:#dbeafe!important;background:#0b1d2f;border:1px solid #1d3a51;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:700;transition:.15s}
+.dd-side-nav a:hover{background:#0e3150;border-color:#1593ff;color:white!important;transform:translateX(2px)}
+.dd-anchor{scroll-margin-top:20px}
+
 h1,h2,h3,h4,p,label,.stMarkdown{color:var(--dd-text)!important}h1{font-size:2rem!important;font-weight:800!important;letter-spacing:-.03em}h2,h3{font-weight:750!important}
 .stTextInput input,.stNumberInput input,.stTextArea textarea,.stSelectbox div[data-baseweb="select"]>div,.stDateInput input{background:#0b1b2b!important;color:#eef6ff!important;border:1px solid #27465f!important;border-radius:8px!important}
 .stTextInput input:focus,.stNumberInput input:focus,.stTextArea textarea:focus,.stDateInput input:focus{border-color:var(--dd-blue)!important;box-shadow:0 0 0 1px var(--dd-blue)!important}
@@ -86,8 +91,27 @@ def login_screen():
 if not st.session_state['autenticado']:
     login_screen()
 else:
+    # --- MENU LATERAL / NAVEGAÇÃO ---
     with st.sidebar:
-        st.write("**Sessão Ativa**")
+        # Logo
+        if os.path.exists(CAMINHO_LOGO_FIXO):
+            st.image(CAMINHO_LOGO_FIXO, use_container_width=True)
+        else:
+            st.markdown("## ⛏️ DRILLDATA")
+
+        st.markdown("### MENU")
+        st.markdown("""
+        <div class="dd-side-nav">
+            <a href="#dashboard">▣ &nbsp; Dashboard</a>
+            <a href="#boletim">▤ &nbsp; Boletim de Sondagem</a>
+            <a href="#manobras">⚒ &nbsp; Manobras / Testemunho</a>
+            <a href="#analise">◉ &nbsp; Análise Digital</a>
+            <a href="#relatorio">▥ &nbsp; Relatórios / PDF</a>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.caption("SESSÃO ATIVA")
         if st.button("Sair / Logout", use_container_width=True):
             st.session_state['autenticado'] = False
             st.rerun()
@@ -135,6 +159,8 @@ else:
         except ValueError:
             pass
 
+    st.markdown('<div id="dashboard" class="dd-anchor"></div>', unsafe_allow_html=True)
+
     st.markdown("""
     <div class="dd-topline">
       <div><div class="dd-title">DRILLDATA — Sistema Digital de Sondagem Mineral</div>
@@ -143,6 +169,8 @@ else:
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
+
+    st.markdown('<div id="boletim" class="dd-anchor"></div>', unsafe_allow_html=True)
 
     # --- 1. CABEÇALHO DO PROJETO & EQUIPE TÉCNICA ---
     st.header("1. Cabeçalho do Projeto & Equipe Técnica")
@@ -201,6 +229,8 @@ else:
             dt_termino = st.date_input("Data de Término", value=datetime.now())
 
     st.markdown("---")
+
+    st.markdown('<div id="manobras" class="dd-anchor"></div>', unsafe_allow_html=True)
 
     # --- 2. REGISTRO DE MANOBRAS E REGISTRO FOTOGRÁFICO ---
     st.header("2. Registro de Manobra e Testemunho")
@@ -357,6 +387,8 @@ else:
     else:
         st.info("Nenhuma manobra cadastrada até o momento. Preencha os campos acima para iniciar.")
 
+    st.markdown('<div id="analise" class="dd-anchor"></div>', unsafe_allow_html=True)
+
     # ==========================================
     # 3. VISUALIZAÇÃO & ANÁLISE DIGITAL (MAPA E GRÁFICOS)
     # ==========================================
@@ -415,6 +447,8 @@ else:
         st.plotly_chart(fig_horas, use_container_width=True)
 
     st.markdown("---")
+
+    st.markdown('<div id="relatorio" class="dd-anchor"></div>', unsafe_allow_html=True)
 
     # ==========================================
     # GERAÇÃO DO PDF DINÂMICO MULTIPÁGINAS (REPORTLAB)
