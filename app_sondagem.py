@@ -706,3 +706,63 @@ else:
         mime="application/pdf",
         use_container_width=True
     )
+
+# ==========================================
+    # 5. ANEXO: VISUALIZAÇÃO DIGITAL E MAPA
+    # ==========================================
+    elements.append(PageBreak())
+
+    p3_header = Table([[
+        Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL E GEOLOCALIZAÇÃO — FURO {furo_id}</b>", st_page2_title),
+        Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_inicio.strftime('%d/%m/%Y')}", st_meta_lbl)
+    ]], colWidths=[18.0*cm, 10.1*cm])
+    p3_header.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F1F5F9')),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+    ]))
+    elements.append(p3_header)
+    elements.append(Spacer(1, 15))
+
+    try:
+        # 1. Exportando Gráfico Plotly de Desempenho
+        if not df.empty:
+            # Converte a fig_rec (já existente) para PNG usando Kaleido
+            img_chart_bytes = fig_rec.to_image(format="png", width=900, height=350, scale=2)
+            rl_chart = RLImage(io.BytesIO(img_chart_bytes), width=18*cm, height=7*cm)
+            
+            elements.append(Paragraph("<b>1. Desempenho da Perfuração (Avanço vs. Recuperação)</b>", st_obs_title))
+            elements.append(Spacer(1, 5))
+            elements.append(rl_chart)
+            elements.append(Spacer(1, 15))
+
+        # 2. Gerando Mapa Estático com Plotly e Exportando
+        fig_map_pdf = px.scatter_mapbox(
+            lat=[latitude], lon=[longitude],
+            zoom=14, mapbox_style="open-street-map"
+        )
+        fig_map_pdf.update_traces(marker=dict(size=14, color="red"))
+        fig_map_pdf.update_layout(
+            margin={"r":0,"t":0,"l":0,"b":0}, 
+            height=350, width=900,
+            showlegend=False
+        )
+        
+        img_map_bytes = fig_map_pdf.to_image(format="png", scale=2)
+        rl_map = RLImage(io.BytesIO(img_map_bytes), width=18*cm, height=7*cm)
+        
+        elements.append(Paragraph(f"<b>2. Localização GPS do Furo (Lat: {latitude:.6f} / Long: {longitude:.6f})</b>", st_obs_title))
+        elements.append(Spacer(1, 5))
+        elements.append(rl_map)
+
+    except Exception as e:
+        erro_msg = f"<b>Aviso:</b> Não foi possível gerar as imagens do mapa/gráfico no PDF. Certifique-se de ter instalado o pacote 'kaleido' (comando: pip install kaleido). Erro técnico: {e}"
+        elements.append(Paragraph(erro_msg, st_obs_body))
+
+    # --- FIM DO BLOCO NOVO ---
+
+    # A linha abaixo já existe no seu código, ela finaliza e gera o documento:
+    doc.build(elements, canvasmaker=DrillDataCanvas)
