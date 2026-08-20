@@ -24,15 +24,30 @@ from reportlab.graphics.shapes import Drawing, Polygon, Group
 st.set_page_config(page_title="Relatório de Sondagem", layout="wide")
 
 st.markdown("""
-    <style>
-    #MainMenu {visibility: hidden !important;}
-    header {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    .stAppHeader {display: none !important;}
-    [data-testid="stStatusWidget"] {display: none !important;}
-    button[title="Manage app"] {display: none !important;}
-    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; }
-    </style>
+<style>
+:root{--dd-bg:#06111f;--dd-panel:#0b1b2b;--dd-border:#1f3a52;--dd-text:#e6eef7;--dd-muted:#8da4b8;--dd-blue:#1593ff;--dd-cyan:#22d3ee;--dd-green:#22c55e;--dd-orange:#f59e0b;--dd-red:#ef4444;--dd-purple:#a855f7}
+.stApp{background:radial-gradient(circle at 80% 0%,rgba(21,147,255,.08),transparent 28%),linear-gradient(135deg,#06111f 0%,#081522 45%,#06101c 100%);color:var(--dd-text)}
+.block-container{max-width:1500px!important;padding:1.15rem 1.45rem 2rem!important}
+#MainMenu,header,footer,[data-testid="stStatusWidget"],button[title="Manage app"]{visibility:hidden!important;display:none!important}
+section[data-testid="stSidebar"]{background:linear-gradient(180deg,#071523 0%,#091c2e 100%)!important;border-right:1px solid #18354d}
+section[data-testid="stSidebar"]>div{padding-top:1rem}
+section[data-testid="stSidebar"] .stButton button{background:#0d2134;border:1px solid #24435b;color:#dbeafe;border-radius:8px;font-weight:600}
+section[data-testid="stSidebar"] .stButton button:hover{border-color:var(--dd-blue);background:#10314c}
+h1,h2,h3,h4,p,label,.stMarkdown{color:var(--dd-text)!important}h1{font-size:2rem!important;font-weight:800!important;letter-spacing:-.03em}h2,h3{font-weight:750!important}
+.stTextInput input,.stNumberInput input,.stTextArea textarea,.stSelectbox div[data-baseweb="select"]>div,.stDateInput input{background:#0b1b2b!important;color:#eef6ff!important;border:1px solid #27465f!important;border-radius:8px!important}
+.stTextInput input:focus,.stNumberInput input:focus,.stTextArea textarea:focus,.stDateInput input:focus{border-color:var(--dd-blue)!important;box-shadow:0 0 0 1px var(--dd-blue)!important}
+.stButton>button,.stDownloadButton>button{border-radius:8px!important;border:1px solid #28516f!important;background:#0c2539!important;color:#eaf4ff!important;font-weight:700!important;min-height:40px}
+.stButton>button[kind="primary"],.stButton>button:hover,.stDownloadButton>button:hover{background:linear-gradient(90deg,#087bd9,#1593ff)!important;border-color:#1593ff!important;color:white!important}
+[data-testid="stExpander"]{background:#0b1b2b!important;border:1px solid var(--dd-border)!important;border-radius:12px!important}
+button[data-baseweb="tab"]{color:#91a9bd!important}button[data-baseweb="tab"][aria-selected="true"]{color:#39a7ff!important}
+[data-testid="stDataFrame"]{border:1px solid #1e3b53!important;border-radius:10px!important;overflow:hidden!important}
+.dd-kpi{background:linear-gradient(145deg,#0d2031,#0a1827);border:1px solid #1d3a51;border-radius:11px;padding:15px 17px;min-height:112px;box-shadow:0 7px 24px rgba(0,0,0,.20)}
+.dd-kpi-label{color:#9bb0c3;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}.dd-kpi-value{margin-top:7px;font-size:28px;line-height:1;font-weight:850}.dd-kpi-sub{margin-top:8px;color:#6f879b;font-size:11px}
+.dd-blue{color:#1593ff}.dd-green{color:#22c55e}.dd-cyan{color:#22d3ee}.dd-orange{color:#f59e0b}.dd-red{color:#ef4444}.dd-purple{color:#a855f7}
+.dd-section{background:linear-gradient(145deg,rgba(12,31,48,.96),rgba(8,23,36,.96));border:1px solid #1b374e;border-radius:12px;padding:16px 18px;margin:10px 0}.dd-section-title{font-size:15px;font-weight:800;color:#e8f2fb;margin-bottom:12px;letter-spacing:.02em}
+.dd-topline{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:16px}.dd-title{font-size:30px;font-weight:850;color:#f3f8fc;letter-spacing:-.035em}.dd-subtitle{color:#7891a6;font-size:13px;margin-top:3px}.dd-status{display:inline-block;padding:5px 10px;border-radius:20px;background:rgba(34,197,94,.13);border:1px solid rgba(34,197,94,.3);color:#4ade80;font-size:11px;font-weight:800}
+div[data-testid="stMetric"]{background:#0b1b2b;border:1px solid #1c3a51;border-radius:10px;padding:12px}div[data-testid="stMetricLabel"]{color:#8fa6b9!important}div[data-testid="stMetricValue"]{color:#edf6ff!important}.stAlert{background:#0b1b2b!important;border:1px solid #24455e!important}hr{border-color:#19354b!important}
+</style>
 """, unsafe_allow_html=True)
 
 # --- DEFINIÇÃO DA LOGOMARCA FIXA ---
@@ -120,7 +135,13 @@ else:
         except ValueError:
             pass
 
-    st.title("DRILLDATA — Sistema Digital de Sondagem Mineral")
+    st.markdown("""
+    <div class="dd-topline">
+      <div><div class="dd-title">DRILLDATA — Sistema Digital de Sondagem Mineral</div>
+      <div class="dd-subtitle">Acompanhe o desempenho da perfuração, recuperação, horas operacionais e localização do furo.</div></div>
+      <div><span class="dd-status">● SISTEMA OPERACIONAL</span></div>
+    </div>
+    """, unsafe_allow_html=True)
     st.markdown("---")
 
     # --- 1. CABEÇALHO DO PROJETO & EQUIPE TÉCNICA ---
@@ -310,6 +331,22 @@ else:
         total_paradas = 0.0
         ult_cx = "-"
 
+    eficiencia_operacional = (total_trabalhado / (total_trabalhado + total_paradas) * 100) if (total_trabalhado + total_paradas) > 0 else 0.0
+    media_avanco = (progresso_total / len(df)) if not df.empty else 0.0
+
+    st.markdown("<div class=\"dd-section-title\">VISÃO GERAL DA OPERAÇÃO</div>", unsafe_allow_html=True)
+    k1,k2,k3,k4,k5,k6=st.columns(6)
+    cards=[
+      (k1,"PROGRESSO TOTAL PERFURADO",f"{progresso_total:.2f} m","Avanço acumulado","dd-blue"),
+      (k2,"MÉDIA DE RECUPERAÇÃO",f"{media_rec:.1f}%","Recuperação média","dd-green"),
+      (k3,"HORAS TRABALHADAS",f"{total_trabalhado:.1f} h","Tempo produtivo","dd-cyan"),
+      (k4,"HORAS PARADAS",f"{total_paradas:.1f} h","Tempo improdutivo","dd-orange"),
+      (k5,"CONSUMO TOTAL DIESEL",f"{diesel_input} L","Consumo registrado","dd-red"),
+      (k6,"EFICIÊNCIA OPERACIONAL",f"{eficiencia_operacional:.1f}%","Produtividade horária","dd-purple")]
+    for col,title,value,sub,color in cards:
+        with col:
+            st.markdown(f"<div class=\"dd-kpi\"><div class=\"dd-kpi-label\">{title}</div><div class=\"dd-kpi-value {color}\">{value}</div><div class=\"dd-kpi-sub\">{sub}</div></div>",unsafe_allow_html=True)
+    st.markdown("<br>",unsafe_allow_html=True)
     st.markdown("---")
     st.subheader("Tabela do Boletim Diário")
     if not df.empty:
@@ -325,6 +362,12 @@ else:
     # ==========================================
     st.markdown("---")
     st.header("3. Visualização & Análise Digital")
+
+    s1,s2,s3,s4=st.columns(4)
+    with s1: st.metric("FUROS / MANOBRAS",len(df),"registros")
+    with s2: st.metric("AVANÇO MÉDIO",f"{media_avanco:.2f} m","por manobra")
+    with s3: st.metric("RECUPERAÇÃO TOTAL",f"{recup_tot_m:.2f} m","testemunho")
+    with s4: st.metric("ÚLTIMA CAIXA",str(ult_cx),"registro atual")
 
     col_mapa, col_grafico = st.columns([1, 1])
 
