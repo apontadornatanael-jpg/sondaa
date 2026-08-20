@@ -8,3 +8,4 @@ streamlit-folium
 openpyxl
 reportlab
 plotly
+kaleido==0.2.1
