@@ -328,6 +328,9 @@ else:
 
     col_mapa, col_grafico = st.columns([1, 1])
 
+    fig_rec = None
+    fig_horas = None
+
     with col_mapa:
         st.subheader("Localização GPS do Furo")
         m = folium.Map(location=[latitude, longitude], zoom_start=15, tiles="OpenStreetMap")
@@ -698,12 +701,12 @@ else:
         elements.append(no_photo_box)
 
     # ==========================================
-    # 5. ANEXO: VISUALIZAÇÃO DIGITAL E MAPA
+    # 5. ANEXO: VISUALIZAÇÃO DIGITAL, GRÁFICOS E MAPA
     # ==========================================
     elements.append(PageBreak())
 
     p3_header = Table([[
-        Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL E GEOLOCALIZAÇÃO — FURO {furo_id}</b>", st_page2_title),
+        Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL, GRÁFICOS E GEOLOCALIZAÇÃO — FURO {furo_id}</b>", st_page2_title),
         Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_inicio.strftime('%d/%m/%Y')}", st_meta_lbl)
     ]], colWidths=[18.0*cm, 10.1*cm])
     p3_header.setStyle(TableStyle([
@@ -730,10 +733,42 @@ else:
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#0F172A')),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
     ]))
     elements.append(t_geo)
+    elements.append(Spacer(1, 10))
+
+    # CONVERSÃO DOS GRÁFICOS DO PLOTLY EM IMAGEM PARA O PDF
+    graficos_elements = []
+
+    if fig_rec and not df.empty:
+        try:
+            img_bytes_rec = fig_rec.to_image(format="png", width=700, height=350)
+            rl_img_rec = RLImage(io.BytesIO(img_bytes_rec), width=13.5*cm, height=6.7*cm)
+        except Exception:
+            rl_img_rec = Paragraph("<b>Erro ao renderizar gráfico de Avanço vs. Recuperação. Verifique se a biblioteca 'kaleido' está instalada.</b>", st_obs_body)
+    else:
+        rl_img_rec = Paragraph("<b>Nenhum dado cadastrado para o gráfico de recuperação.</b>", st_obs_body)
+
+    if fig_horas and not df.empty:
+        try:
+            img_bytes_horas = fig_horas.to_image(format="png", width=700, height=350)
+            rl_img_horas = RLImage(io.BytesIO(img_bytes_horas), width=13.5*cm, height=6.7*cm)
+        except Exception:
+            rl_img_horas = Paragraph("<b>Erro ao renderizar gráfico de Horas Operacionais. Verifique se a biblioteca 'kaleido' está instalada.</b>", st_obs_body)
+    else:
+        rl_img_horas = Paragraph("<b>Nenhum dado cadastrado para o gráfico de horas.</b>", st_obs_body)
+
+    grid_graficos = Table([[rl_img_rec, rl_img_horas]], colWidths=[14.0*cm, 14.1*cm])
+    grid_graficos.setStyle(TableStyle([
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4)
+    ]))
+    elements.append(grid_graficos)
 
     # ==========================================
     # CONSTRUÇÃO FINAL DO PDF E BOTÃO DE DOWNLOAD
