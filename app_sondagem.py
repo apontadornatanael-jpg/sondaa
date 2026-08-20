@@ -47,7 +47,7 @@ def login_screen():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<br><br>", unsafe_allow_html=True)
-        st.markdown("## ⛏️ **DRILLDATA** — Acesso ao Sistema")
+        st.markdown("## **DRILLDATA** — Acesso ao Sistema")
         st.markdown("Por favor, insira suas credenciais para continuar.")
         
         with st.form("login_form"):
@@ -67,8 +67,8 @@ if not st.session_state['autenticado']:
     login_screen()
 else:
     with st.sidebar:
-        st.write("👤 **Sessão Ativa**")
-        if st.button("🚪 Sair / Logout", use_container_width=True):
+        st.write("**Sessão Ativa**")
+        if st.button("Sair / Logout", use_container_width=True):
             st.session_state['autenticado'] = False
             st.rerun()
 
@@ -115,7 +115,7 @@ else:
         except ValueError:
             pass
 
-    st.title("⛏️ DRILLDATA — Sistema Digital de Sondagem Mineral")
+    st.title("DRILLDATA — Sistema Digital de Sondagem Mineral")
     st.markdown("---")
 
     # --- 1. CABEÇALHO DO PROJETO & EQUIPE TÉCNICA ---
@@ -128,13 +128,13 @@ else:
 
     col_logo, col_gest = st.columns([1, 3])
     with col_logo:
-        st.subheader("🖼️ Logomarca da Empresa")
+        st.subheader("Logomarca da Empresa")
         
         if img_logo_pil:
             st.image(img_logo_pil, caption="Boa Fortuna (Logo Padrão)", width=180)
-            st.info("💡 Logomarca padrão ativa automaticamente.")
+            st.info("Logomarca padrão ativa automaticamente.")
         else:
-            st.warning("⚠️ Logomarca padrão não localizada. Faça o upload manual abaixo.")
+            st.warning("Logomarca padrão não localizada. Faça o upload manual abaixo.")
         
         logo_file = st.file_uploader("Substituir Logo (Opcional)", type=['png', 'jpg', 'jpeg'])
         if logo_file:
@@ -161,7 +161,7 @@ else:
     with col_p3:
         diesel_input = st.number_input("Consumo Total Diesel (L)", value=0, step=5)
 
-    with st.expander("🌐 Coordenadas GPS Automáticas e Detalhes do Furo", expanded=True):
+    with st.expander("Coordenadas GPS Automáticas e Detalhes do Furo", expanded=True):
         col_c1, col_c2, col_c3, col_c4 = st.columns(4)
         with col_c1:
             latitude = st.number_input("Latitude (Capturada do GPS)", value=st.session_state['auto_lat'], format="%.6f")
@@ -206,8 +206,8 @@ else:
     with col_l1:
         litologia_obs = st.text_input("Descrição Litológica / Observações da Manobra", value="")
 
-    st.subheader("📷 Registro Fotográfico da Manobra (Até 3 fotos)")
-    aba_up, aba_cam = st.tabs(["📁 Selecionar da Galeria (Até 3)", "📸 Tirar Foto Agora"])
+    st.subheader("Registro Fotográfico da Manobra (Até 3 fotos)")
+    aba_up, aba_cam = st.tabs(["Selecionar da Galeria (Até 3)", "Tirar Foto Agora"])
 
     fotos_manobra_pil = []
 
@@ -220,7 +220,7 @@ else:
         )
         if fotos_files:
             if len(fotos_files) > 3:
-                st.warning("⚠️ Foram selecionadas mais de 3 fotos. Apenas as 3 primeiras serão mantidas.")
+                st.warning("Foram selecionadas mais de 3 fotos. Apenas as 3 primeiras serão mantidas.")
                 fotos_files = fotos_files[:3]
             for f in fotos_files:
                 fotos_manobra_pil.append(Image.open(f))
@@ -231,7 +231,7 @@ else:
             fotos_manobra_pil.append(Image.open(foto_cam))
 
     if fotos_manobra_pil:
-        st.write(f"📸 **{len(fotos_manobra_pil)} foto(s) anexada(s) nesta manobra:**")
+        st.write(f"**{len(fotos_manobra_pil)} foto(s) anexada(s) nesta manobra:**")
         cols_preview = st.columns(len(fotos_manobra_pil))
         for i, img in enumerate(fotos_manobra_pil):
             with cols_preview[i]:
@@ -239,14 +239,14 @@ else:
 
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
-        btn_adicionar = st.button("➕ Adicionar Manobra", type="primary")
+        btn_adicionar = st.button("Adicionar Manobra", type="primary")
     with col_btn2:
-        btn_remover = st.button("🗑️ Remover Última")
+        btn_remover = st.button("Remover Última")
 
     if btn_adicionar:
         avanco = round(ate - de, 2)
         if avanco <= 0:
-            st.error("⚠️ O valor 'Até' deve ser maior que 'De'!")
+            st.error("O valor 'Até' deve ser maior que 'De'!")
         else:
             acumulado = round((itens[-1]['Acumulado (m)'] if itens else 0.0) + avanco, 2)
             pct_rec = min(100.0, round((rec / avanco) * 100, 1)) if avanco > 0 else 0.0
@@ -267,16 +267,16 @@ else:
                 "Descrição Litológica / Observações": litologia_obs,
                 "Fotos": fotos_manobra_pil.copy()
             })
-            st.success("✅ Manobra registrada!")
+            st.success("Manobra registrada!")
             st.rerun()
 
     if btn_remover and st.session_state['itens_sondagem']:
         st.session_state['itens_sondagem'].pop()
-        st.warning("🗑️ Última manobra removida.")
+        st.warning("Última manobra removida.")
         st.rerun()
 
     st.markdown("---")
-    st.subheader("📝 Observações Gerais do Furo / Relatório")
+    st.subheader("Observações Gerais do Furo / Relatório")
     obs_gerais_furo = st.text_area(
         "Observações Gerais do Relatório (serão exibidas na caixa abaixo da tabela no PDF)",
         value="Furo executado conforme o planejamento geotécnico e normas de segurança. Nível d'água não detectado durante a perfuração. Amostras preservadas e catalogadas.",
@@ -307,7 +307,7 @@ else:
         ult_cx = "-"
 
     st.markdown("---")
-    st.subheader("📋 Tabela do Boletim Diário")
+    st.subheader("Tabela do Boletim Diário")
     if not df.empty:
         df_exibicao = df.copy()
         df_exibicao['Qtd Fotos'] = df_exibicao['Fotos'].apply(lambda x: len(x) if isinstance(x, list) else 0)
@@ -536,7 +536,7 @@ else:
     ]))
 
     obs_content = [
-        [Paragraph("<b>📌 OBSERVAÇÕES / NOTAS DE CAMPO</b>", st_obs_title)],
+        [Paragraph("<b>OBSERVAÇÕES / NOTAS DE CAMPO</b>", st_obs_title)],
         [Paragraph(obs_gerais_furo if obs_gerais_furo.strip() else "Nenhuma observação adicional registrada para este boletim.", st_obs_body)]
     ]
     t_obs = Table(obs_content, colWidths=[28.1*cm])
@@ -646,7 +646,7 @@ else:
     doc.build(elements, canvasmaker=DrillDataCanvas)
 
     st.download_button(
-        "📄 Baixar Relatório PDF Atualizado (.pdf)",
+        "Baixar Relatório PDF Atualizado (.pdf)",
         data=buf_pdf.getvalue(),
         file_name=f"Relatorio_{furo_id if furo_id else 'Sondagem'}.pdf",
         mime="application/pdf",
