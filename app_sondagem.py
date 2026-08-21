@@ -7,10 +7,6 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-import io
-import matplotlib.pyplot as plt
-from reportlab.platypus import Image, Table, TableStyle
-
 # Imports do Plotly e Folium
 import folium
 import plotly.express as px
