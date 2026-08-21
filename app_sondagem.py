@@ -12,6 +12,11 @@ import folium
 import plotly.express as px
 from streamlit_folium import st_folium
 
+# Import do Matplotlib para geração estática e segura no ReportLab (evita erro do Kaleido)
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 # Imports do ReportLab para geração de PDF
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -156,13 +161,6 @@ h1, h2, h3, h4, p, label, .stMarkdown {
     color: #81c784;
     font-size: 11px;
 }
-
-.dd-blue { color: var(--bf-blue) !important; }
-.dd-green { color: var(--bf-green-light) !important; }
-.dd-cyan { color: #80deea !important; }
-.dd-orange { color: var(--bf-gold) !important; }
-.dd-red { color: var(--bf-red) !important; }
-.dd-purple { color: #ce93d8 !important; }
 
 .dd-topline {
     display: flex;
@@ -476,7 +474,7 @@ else:
     # --- CLASSE CANVAS CUSTOMIZADA PARA CABEÇALHO/RODAPÉ DE PÁGINAS ---
     class NumberedCanvas(canvas.Canvas):
         def __init__(self, *args, **kwargs):
-            canvas.Canvas.__init__(self, *args, **kwargs)
+            super().__init__(*args, **kwargs)
             self._saved_page_states = []
 
         def showPage(self):
@@ -488,15 +486,59 @@ else:
             for state in self._saved_page_states:
                 self.__dict__.update(state)
                 self.draw_page_number(num_pages)
-                canvas.Canvas.showPage(self)
-            canvas.Canvas.save(self)
+                super().showPage()
+            super().save()
 
         def draw_page_number(self, page_count):
             self.setFont("Helvetica", 8)
             self.setFillColor(colors.HexColor("#555555"))
             self.drawRightString(28.5 * cm, 0.8 * cm, f"Página {self._pageNumber} de {page_count}")
 
-   # --- GERADOR DE PDF EXATO DO MODELO ---
+    # --- GERADOR DE GRÁFICOS COMPATÍVEIS PARA PDF ---
+    def gerar_imagem_grafico_avanco_rec(df_input):
+        fig, ax = plt.subplots(figsize=(6, 3.2), dpi=150)
+        items = df_input['Item'].astype(str)
+        x = range(len(items))
+        width = 0.35
+        
+        ax.bar([i - width/2 for i in x], df_input['Avanço (m)'], width, label='Avanço (m)', color='#2e7d32')
+        ax.bar([i + width/2 for i in x], df_input['Recup. (m)'], width, label='Recup. (m)', color='#0288d1')
+        
+        ax.set_title("Avanço vs. Recuperação", fontsize=10, fontweight='bold', color='#12221b')
+        ax.set_xticks(list(x))
+        ax.set_xticklabels(items, fontsize=8)
+        ax.set_xlabel("Item / Manobra", fontsize=8)
+        ax.set_ylabel("Metros (m)", fontsize=8)
+        ax.legend(fontsize=8)
+        ax.grid(axis='y', linestyle='--', alpha=0.5)
+        plt.tight_layout()
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+
+    def gerar_imagem_grafico_horas(h_trab, h_par):
+        fig, ax = plt.subplots(figsize=(6, 3.2), dpi=150)
+        labels = ['Trabalhadas', 'Paradas']
+        values = [h_trab, h_par]
+        colors_pie = ['#2e7d32', '#e53935']
+        
+        if sum(values) == 0:
+            values = [1, 0]
+            
+        ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90, colors=colors_pie, textprops={'fontsize': 8})
+        ax.set_title("Distribuição de Horas", fontsize=10, fontweight='bold', color='#12221b')
+        plt.tight_layout()
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        plt.close(fig)
+        buf.seek(0)
+        return buf
+
+    # --- GERADOR DE PDF EXATO DO MODELO ---
     def gerar_pdf_boa_fortuna():
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -512,7 +554,6 @@ else:
         styles = getSampleStyleSheet()
 
         title_style = ParagraphStyle('Title', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor("#12221b"))
-        sub_title_style = ParagraphStyle('SubTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, textColor=colors.HexColor("#2e7d32"))
         
         header_cell = ParagraphStyle('HCell', fontName='Helvetica-Bold', fontSize=7, textColor=colors.white, alignment=1)
         cell_center = ParagraphStyle('CCell', fontName='Helvetica', fontSize=7, alignment=1)
@@ -614,7 +655,7 @@ else:
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
             ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e8f5e9")),
-            ('SPAN', (0,-1), (3,-1)),  # Mescla as colunas 0 a 3 para a legenda de Totais
+            ('SPAN', (0,-1), (3,-1)),
             ('TOPPADDING', (0,0), (-1,-1), 1),
             ('BOTTOMPADDING', (0,0), (-1,-1), 1),
         ]))
@@ -729,154 +770,32 @@ else:
         elements.append(t_geo)
         elements.append(Spacer(1, 0.4*cm))
 
-        # Gráficos na Página 3
-        if fig_rec is not None and fig_horas is not None and not df.empty:
-            try:
-                img_bytes_rec = fig_rec.to_image(format="png", width=550, height=300)
-                img_bytes_pie = fig_horas.to_image(format="png", width=550, height=300)
-                
-                rl_chart_rec = RLImage(io.BytesIO(img_bytes_rec), width=13.5*cm, height=7.5*cm)
-                rl_chart_pie = RLImage(io.BytesIO(img_bytes_pie), width=13.5*cm, height=7.5*cm)
-
-                t_charts = Table([[rl_chart_rec, rl_chart_pie]], colWidths=[13.8*cm, 13.8*cm])
-                t_charts.setStyle(TableStyle([
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ]))
-                elements.append(t_charts)
-            except Exception as e:
-                elements.append(Paragraph(f"<i>Não foi possível renderizar os gráficos no PDF: {e}</i>", cell_left))
-
-        doc.build(elements, canvasmaker=NumberedCanvas)
-        buffer.seek(0)
-        return buffer
-        # --- CAMPO DE ASSINATURAS DOS RESPONSÁVEIS (MODELO EXACT) ---
-        sig_cell_center = ParagraphStyle('SigCell', fontName='Helvetica', fontSize=6.5, alignment=1)
-        sig_data = [
-            [Paragraph("___________________________________<br/><b>Sondador/Equipe</b><br/>Sondador/Operador Responsável", sig_cell_center),
-             Paragraph("___________________________________<br/><b>Geólogo Responsável</b><br/>Fiscalização de Campo/Geologia", sig_cell_center),
-             Paragraph("___________________________________<br/><b>Empresa / Cliente</b><br/>Supervisão de Operações", sig_cell_center)]
-        ]
-        t_sig = Table(sig_data, colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
-        t_sig.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ]))
-        elements.append(t_sig)
-
-        # ================= PAGE 2 =================
-        elements.append(PageBreak())
-        elements.append(Paragraph(f"<b>ANEXO: REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS - FURO {furo_id}</b>", title_style))
-        elements.append(Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_termino.strftime('%d/%m/%Y')}", cell_left))
-        elements.append(Spacer(1, 0.4*cm))
-
-        todas_fotos = []
+        # Renderização dos Gráficos na Página 3 via Matplotlib
         if not df.empty:
-            for _, r in df.iterrows():
-                fotos_lista = r.get("Fotos", [])
-                if isinstance(fotos_lista, list):
-                    for idx, img_p in enumerate(fotos_lista):
-                        todas_fotos.append((r["Item"], r["De (m)"], r["Até (m)"], idx + 1, img_p))
+            buf_rec = gerar_imagem_grafico_avanco_rec(df)
+            buf_pie = gerar_imagem_grafico_horas(total_trabalhado, total_paradas)
 
-        if todas_fotos:
-            foto_rows = []
-            row_temp = []
-            for item_num, de_m, ate_m, f_idx, img_p in todas_fotos:
-                img_buf = io.BytesIO()
-                img_p.save(img_buf, format='JPEG', quality=85)
-                img_buf.seek(0)
-                
-                rl_img = RLImage(img_buf, width=8.2*cm, height=5.5*cm)
-                caption = Paragraph(f"<b>Manobra {item_num}</b> ({de_m:.2f}m - {ate_m:.2f}m) - Foto {f_idx}", cell_center)
-                cell_box = Table([[rl_img], [caption]], colWidths=[8.5*cm])
-                cell_box.setStyle(TableStyle([
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#fafafa")),
-                    ('TOPPADDING', (0,0), (-1,-1), 2),
-                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
-                ]))
+            rl_chart_rec = RLImage(buf_rec, width=13.5*cm, height=7.2*cm)
+            rl_chart_pie = RLImage(buf_pie, width=13.5*cm, height=7.2*cm)
 
-                row_temp.append(cell_box)
-                if len(row_temp) == 3:
-                    foto_rows.append(row_temp)
-                    row_temp = []
-
-            if row_temp:
-                while len(row_temp) < 3:
-                    row_temp.append(Paragraph("", cell_center))
-                foto_rows.append(row_temp)
-
-            t_fotos = Table(foto_rows, colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
-            t_fotos.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            t_charts = Table([[rl_chart_rec, rl_chart_pie]], colWidths=[13.8*cm, 13.8*cm])
+            t_charts.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
                 ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
             ]))
-            elements.append(t_fotos)
-        else:
-            elements.append(Paragraph("Nenhum registro fotográfico foi anexado para este boletim de sondagem.", cell_left))
-
-        # ================= PAGE 3 =================
-        elements.append(PageBreak())
-        elements.append(Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL, GRÁFICOS E GEOLOCALIZAÇÃO - FURO {furo_id}</b>", title_style))
-        elements.append(Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_termino.strftime('%d/%m/%Y')}", cell_left))
-        elements.append(Spacer(1, 0.3*cm))
-
-        # Tabela de Geolocalização
-        geo_headers = [Paragraph("<b>PARÂMETRO DE LOCALIZAÇÃO</b>", header_cell), Paragraph("<b>VALOR REGISTRADO</b>", header_cell)]
-        geo_data = [
-            geo_headers,
-            [Paragraph("Latitude", cell_left), Paragraph(f"{latitude:.6f}", cell_left)],
-            [Paragraph("Longitude", cell_left), Paragraph(f"{longitude:.6f}", cell_left)],
-            [Paragraph("Datum Geodésico", cell_left), Paragraph(datum, cell_left)],
-            [Paragraph("Inclinação / Azimute", cell_left), Paragraph(f"{inclinacao}° / {azimute}°", cell_left)],
-        ]
-        t_geo = Table(geo_data, colWidths=[10.0*cm, 17.7*cm])
-        t_geo.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#12221b")),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#fafafa")),
-            ('TOPPADDING', (0,0), (-1,-1), 2),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
-        ]))
-        elements.append(t_geo)
-        elements.append(Spacer(1, 0.4*cm))
-
-        # Renderização Lado a Lado dos Gráficos em Imagem Estática
-        if fig_rec is not None and fig_horas is not None and not df.empty:
-            try:
-                img_bytes_rec = fig_rec.to_image(format="png", width=550, height=300, engine="kaleido")
-                img_bytes_pie = fig_horas.to_image(format="png", width=550, height=300, engine="kaleido")
-                
-                rl_chart_rec = RLImage(io.BytesIO(img_bytes_rec), width=13.5*cm, height=7.5*cm)
-                rl_chart_pie = RLImage(io.BytesIO(img_bytes_pie), width=13.5*cm, height=7.5*cm)
-
-                t_charts = Table([[rl_chart_rec, rl_chart_pie]], colWidths=[13.8*cm, 13.8*cm])
-                t_charts.setStyle(TableStyle([
-                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ]))
-                elements.append(t_charts)
-            except Exception as e:
-                elements.append(Paragraph(f"<i>Não foi possível renderizar os gráficos no PDF: {e}</i>", cell_left))
+            elements.append(t_charts)
 
         doc.build(elements, canvasmaker=NumberedCanvas)
         buffer.seek(0)
         return buffer
 
-    # --- BOTÃO DE DOWNLOAD NA INTERFACE ---
-    col_dl1, col_dl2 = st.columns([1, 2])
-    with col_dl1:
-        if st.button("Gerar Relatório PDF Completo", type="primary", use_container_width=True):
-            pdf_out = gerar_pdf_boa_fortuna()
-            st.download_button(
-                label=" Baixar Relatório PDF",
-                data=pdf_out,
-                file_name=f"Relatorio_{furo_id}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
+    # Botão de Download na Interface
+    pdf_buffer = gerar_pdf_boa_fortuna()
+    st.download_button(
+        label="📥 Baixar Relatório em PDF",
+        data=pdf_buffer,
+        file_name=f"Relatorio_Sondagem_{furo_id}.pdf",
+        mime="application/pdf",
+        type="primary",
+        use_container_width=True
+    )
