@@ -496,7 +496,7 @@ else:
             self.setFillColor(colors.HexColor("#555555"))
             self.drawRightString(28.5 * cm, 0.8 * cm, f"Página {self._pageNumber} de {page_count}")
 
-    # --- GERADOR DE PDF EXATO DO MODELO ---
+   # --- GERADOR DE PDF EXATO DO MODELO ---
     def gerar_pdf_boa_fortuna():
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(
@@ -548,6 +548,7 @@ else:
         elements.append(t_header)
         elements.append(Spacer(1, 0.15*cm))
 
+        # KPIs no padrão visual verde
         kpi_data = [
             [Paragraph("PROGRESSO TOTAL PERFURADO", kpi_title_style), Paragraph("MÉDIA DE RECUPERAÇÃO", kpi_title_style), Paragraph("TOTAL HORAS TRABALHADAS", kpi_title_style), Paragraph("TOTAL HORAS PARADAS", kpi_title_style), Paragraph("CONSUMO TOTAL DIESEL", kpi_title_style)],
             [Paragraph(f"{progresso_total:.2f} m", kpi_val_style), Paragraph(f"{media_rec:.1f}%", kpi_val_style), Paragraph(f"{total_trabalhado:.1f} h", kpi_val_style), Paragraph(f"{total_paradas:.1f} h", kpi_val_style), Paragraph(f"{diesel_input} L", kpi_val_style)]
@@ -565,6 +566,7 @@ else:
         elements.append(t_kpi)
         elements.append(Spacer(1, 0.15*cm))
 
+        # Tabela do Boletim
         headers = ["Item", "Horário", "De (m)", "Até (m)", "Avanço (m)", "Acumulado (m)", "Recup. (m)", "Recup. (%)", "N° Cx", "Trab.", "Parado", "Motivo Parada", "Descrição Litológica / Observações"]
         t_boletim_data = [[Paragraph(h, header_cell) for h in headers]]
 
@@ -586,18 +588,21 @@ else:
                     Paragraph(str(r["Descrição Litológica / Observações"]), cell_left)
                 ])
 
+            # Linha de Totais Ajustada Correta
+            rec_media_global = (recup_tot_m / progresso_total * 100) if progresso_total > 0 else 0.0
             t_boletim_data.append([
                 Paragraph("TOTAIS/MÉDIAS OPERACIONAIS:", cell_left_bold),
-                Paragraph("", cell_center), Paragraph("", cell_center),
-                Paragraph(f"<b>{progresso_total:.2f} m</b>", cell_center),
+                Paragraph("", cell_center), 
+                Paragraph("", cell_center),
+                Paragraph("", cell_center),
                 Paragraph(f"<b>{progresso_total:.2f} m</b>", cell_center),
                 Paragraph(f"<b>{progresso_total:.2f} m</b>", cell_center),
                 Paragraph(f"<b>{recup_tot_m:.2f} m</b>", cell_center),
-                Paragraph(f"<b>{media_rec:.1f}%</b>", cell_center),
+                Paragraph(f"<b>{rec_media_global:.1f}%</b>", cell_center),
                 Paragraph(str(ult_cx), cell_center),
                 Paragraph(f"<b>{total_trabalhado:.1f} h</b>", cell_center),
                 Paragraph(f"<b>{total_paradas:.1f} h</b>", cell_center),
-                Paragraph(f"Diesel: {diesel_input} L", cell_left_bold),
+                Paragraph(f"<b>Diesel:</b> {diesel_input} L", cell_left_bold),
                 Paragraph("Furo em andamento/finalizado.", cell_left)
             ])
 
@@ -609,7 +614,7 @@ else:
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
             ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
             ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e8f5e9")),
-            ('SPAN', (0,-1), (2,-1)),
+            ('SPAN', (0,-1), (3,-1)),  # Mescla as colunas 0 a 3 para a legenda de Totais
             ('TOPPADDING', (0,0), (-1,-1), 1),
             ('BOTTOMPADDING', (0,0), (-1,-1), 1),
         ]))
@@ -628,6 +633,123 @@ else:
         elements.append(t_obs)
         elements.append(Spacer(1, 0.3*cm))
 
+        # Bloco de Assinaturas (Página 1)
+        sig_cell_center = ParagraphStyle('SigCell', fontName='Helvetica', fontSize=6.5, alignment=1)
+        sig_data = [
+            [Paragraph("___________________________________<br/><b>Sondador/Equipe</b><br/>Sondador/Operador Responsável", sig_cell_center),
+             Paragraph("___________________________________<br/><b>Geólogo Responsável</b><br/>Fiscalização de Campo/Geologia", sig_cell_center),
+             Paragraph("___________________________________<br/><b>Empresa / Cliente</b><br/>Supervisão de Operações", sig_cell_center)]
+        ]
+        t_sig = Table(sig_data, colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
+        t_sig.setStyle(TableStyle([
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('TOPPADDING', (0,0), (-1,-1), 4),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ]))
+        elements.append(t_sig)
+
+        # ================= PAGE 2 =================
+        elements.append(PageBreak())
+        elements.append(Paragraph(f"<b>ANEXO: REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS - FURO {furo_id}</b>", title_style))
+        elements.append(Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_termino.strftime('%d/%m/%Y')}", cell_left))
+        elements.append(Spacer(1, 0.4*cm))
+
+        todas_fotos = []
+        if not df.empty:
+            for _, r in df.iterrows():
+                fotos_lista = r.get("Fotos", [])
+                if isinstance(fotos_lista, list):
+                    for idx, img_p in enumerate(fotos_lista):
+                        todas_fotos.append((r["Item"], r["De (m)"], r["Até (m)"], idx + 1, img_p))
+
+        if todas_fotos:
+            foto_rows = []
+            row_temp = []
+            for item_num, de_m, ate_m, f_idx, img_p in todas_fotos:
+                img_buf = io.BytesIO()
+                img_p.save(img_buf, format='JPEG', quality=85)
+                img_buf.seek(0)
+                
+                rl_img = RLImage(img_buf, width=8.2*cm, height=5.5*cm)
+                caption = Paragraph(f"<b>Manobra {item_num}</b> ({de_m:.2f}m - {ate_m:.2f}m) - Foto {f_idx}", cell_center)
+                cell_box = Table([[rl_img], [caption]], colWidths=[8.5*cm])
+                cell_box.setStyle(TableStyle([
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#fafafa")),
+                    ('TOPPADDING', (0,0), (-1,-1), 2),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                ]))
+
+                row_temp.append(cell_box)
+                if len(row_temp) == 3:
+                    foto_rows.append(row_temp)
+                    row_temp = []
+
+            if row_temp:
+                while len(row_temp) < 3:
+                    row_temp.append(Paragraph("", cell_center))
+                foto_rows.append(row_temp)
+
+            t_fotos = Table(foto_rows, colWidths=[9.2*cm, 9.2*cm, 9.2*cm])
+            t_fotos.setStyle(TableStyle([
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ]))
+            elements.append(t_fotos)
+        else:
+            elements.append(Paragraph("Nenhum registro fotográfico foi anexado para este boletim de sondagem.", cell_left))
+
+        # ================= PAGE 3 =================
+        elements.append(PageBreak())
+        elements.append(Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL, GRÁFICOS E GEOLOCALIZAÇÃO - FURO {furo_id}</b>", title_style))
+        elements.append(Paragraph(f"<b>Projeto:</b> {nome_projeto} | <b>Data:</b> {dt_termino.strftime('%d/%m/%Y')}", cell_left))
+        elements.append(Spacer(1, 0.3*cm))
+
+        # Geolocalização
+        geo_headers = [Paragraph("<b>PARÂMETRO DE LOCALIZAÇÃO</b>", header_cell), Paragraph("<b>VALOR REGISTRADO</b>", header_cell)]
+        geo_data = [
+            geo_headers,
+            [Paragraph("Latitude", cell_left), Paragraph(f"{latitude:.6f}", cell_left)],
+            [Paragraph("Longitude", cell_left), Paragraph(f"{longitude:.6f}", cell_left)],
+            [Paragraph("Datum Geodésico", cell_left), Paragraph(datum, cell_left)],
+            [Paragraph("Inclinação / Azimute", cell_left), Paragraph(f"{inclinacao}° / {azimute}°", cell_left)],
+        ]
+        t_geo = Table(geo_data, colWidths=[10.0*cm, 17.7*cm])
+        t_geo.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#12221b")),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
+            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#fafafa")),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+        ]))
+        elements.append(t_geo)
+        elements.append(Spacer(1, 0.4*cm))
+
+        # Gráficos na Página 3
+        if fig_rec is not None and fig_horas is not None and not df.empty:
+            try:
+                img_bytes_rec = fig_rec.to_image(format="png", width=550, height=300)
+                img_bytes_pie = fig_horas.to_image(format="png", width=550, height=300)
+                
+                rl_chart_rec = RLImage(io.BytesIO(img_bytes_rec), width=13.5*cm, height=7.5*cm)
+                rl_chart_pie = RLImage(io.BytesIO(img_bytes_pie), width=13.5*cm, height=7.5*cm)
+
+                t_charts = Table([[rl_chart_rec, rl_chart_pie]], colWidths=[13.8*cm, 13.8*cm])
+                t_charts.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ]))
+                elements.append(t_charts)
+            except Exception as e:
+                elements.append(Paragraph(f"<i>Não foi possível renderizar os gráficos no PDF: {e}</i>", cell_left))
+
+        doc.build(elements, canvasmaker=NumberedCanvas)
+        buffer.seek(0)
+        return buffer
         # --- CAMPO DE ASSINATURAS DOS RESPONSÁVEIS (MODELO EXACT) ---
         sig_cell_center = ParagraphStyle('SigCell', fontName='Helvetica', fontSize=6.5, alignment=1)
         sig_data = [
