@@ -1,24 +1,34 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import pandas as pd
 import io
 import os
 from datetime import datetime
 from PIL import Image
 
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
+
 # Imports do Plotly e Folium
-import plotly.express as px
 import folium
+import plotly.express as px
 from streamlit_folium import st_folium
 
 # Imports do ReportLab para geração de PDF
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.graphics.shapes import Drawing, Group, Polygon
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether, PageBreak, Image as RLImage
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet  # <--- IMPORT ADICIONADO AQUI
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
-from reportlab.graphics.shapes import Drawing, Polygon, Group
+from reportlab.platypus import (
+    Image as RLImage,
+    KeepTogether,
+    PageBreak,
+    Paragraph,
+    SimpleDocTemplate,
+    Spacer,
+    Table,
+    TableStyle,
+)
 
 # --- CONFIGURAÇÃO DA PÁGINA STREAMLIT ---
 st.set_page_config(page_title="Relatório de Sondagem - Boa Fortuna", layout="wide")
@@ -325,7 +335,6 @@ if not st.session_state['autenticado']:
 else:
     # --- MENU LATERAL / NAVEGAÇÃO ---
     with st.sidebar:
-        # Logo
         if os.path.exists(CAMINHO_LOGO_FIXO):
             st.image(CAMINHO_LOGO_FIXO, use_container_width=True)
         else:
@@ -622,7 +631,7 @@ else:
     st.markdown('<div id="analise" class="dd-anchor"></div>', unsafe_allow_html=True)
 
     # ==========================================
-    # 3. VISUALIZAÇÃO & ANÁLISE DIGITAL (MAPA E GRÁFICOS)
+    # 3. VISUALIZAÇÃO & ANÁLISE DIGITAL
     # ==========================================
     st.markdown("---")
     st.header("3. Visualização & Análise Digital")
@@ -659,7 +668,7 @@ else:
                 barmode="group",
                 title="Avanço vs. Recuperação por Manobra",
                 labels={"value": "Metros (m)", "Item": "Nº da Manobra", "variable": "Métrica"},
-                color_discrete_sequence=["#0288d1", "#2e7d32"]  # Cores ajustadas: Azul e Verde da Logo
+                color_discrete_sequence=["#0288d1", "#2e7d32"]
             )
             fig_rec.update_layout(height=350, margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig_rec, use_container_width=True)
@@ -672,7 +681,7 @@ else:
             names=["Trabalhadas", "Paradas"],
             values=[total_trabalhado, total_paradas],
             title="Distribuição das Horas de Trabalho",
-            color_discrete_sequence=["#2e7d32", "#d4af37"],  # Verde e Dourado
+            color_discrete_sequence=["#2e7d32", "#d4af37"],
             hole=0.4
         )
         fig_horas.update_layout(height=300)
@@ -680,239 +689,238 @@ else:
 
     st.markdown("---")
     st.markdown('<div id="relatorio" class="dd-anchor"></div>', unsafe_allow_html=True)
+
     # ==========================================
-# 4. GERAÇÃO E DOWNLOAD DO RELATÓRIO PDF
-# ==========================================
-st.header("4. Exportação do Relatório em PDF")
+    # 4. GERAÇÃO E DOWNLOAD DO RELATÓRIO PDF
+    # ==========================================
+    st.header("4. Exportação do Relatório em PDF")
 
+    def gerar_pdf_boa_fortuna():
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            rightMargin=1.5 * cm,
+            leftMargin=1.5 * cm,
+            topMargin=1.5 * cm,
+            bottomMargin=1.5 * cm,
+        )
 
-def gerar_pdf_boa_fortuna():
-  buffer = io.BytesIO()
-  doc = SimpleDocTemplate(
-      buffer,
-      pagesize=landscape(A4),
-      rightMargin=1.5 * cm,
-      leftMargin=1.5 * cm,
-      topMargin=1.5 * cm,
-      bottomMargin=1.5 * cm,
-  )
+        elements = []
+        styles = getSampleStyleSheet()
 
-  elements = []
-  styles = getSampleStyleSheet()
+        # Estilos customizados
+        title_style = ParagraphStyle(
+            "DocTitle",
+            parent=styles["Heading1"],
+            fontName="Helvetica-Bold",
+            fontSize=16,
+            textColor=colors.HexColor("#12221b"),
+            alignment=1,
+            spaceAfter=6,
+        )
 
-  # Estilos customizados
-  title_style = ParagraphStyle(
-      "DocTitle",
-      parent=styles["Heading1"],
-      fontName="Helvetica-Bold",
-      fontSize=16,
-      textColor=colors.HexColor("#12221b"),
-      alignment=1,
-      spaceAfter=6,
-  )
+        sub_style = ParagraphStyle(
+            "DocSub",
+            parent=styles["Normal"],
+            fontName="Helvetica",
+            fontSize=9,
+            textColor=colors.HexColor("#2e7d32"),
+            alignment=1,
+            spaceAfter=12,
+        )
 
-  sub_style = ParagraphStyle(
-      "DocSub",
-      parent=styles["Normal"],
-      fontName="Helvetica",
-      fontSize=9,
-      textColor=colors.HexColor("#2e7d32"),
-      alignment=1,
-      spaceAfter=12,
-  )
+        header_cell_style = ParagraphStyle(
+            "HeaderCell",
+            fontName="Helvetica-Bold",
+            fontSize=8,
+            textColor=colors.white,
+            alignment=1,
+        )
 
-  header_cell_style = ParagraphStyle(
-      "HeaderCell",
-      fontName="Helvetica-Bold",
-      fontSize=8,
-      textColor=colors.white,
-      alignment=1,
-  )
+        cell_style = ParagraphStyle(
+            "CellText", fontName="Helvetica", fontSize=8, alignment=1
+        )
 
-  cell_style = ParagraphStyle(
-      "CellText", fontName="Helvetica", fontSize=8, alignment=1
-  )
+        cell_left_style = ParagraphStyle(
+            "CellTextLeft", fontName="Helvetica", fontSize=7, alignment=0
+        )
 
-  cell_left_style = ParagraphStyle(
-      "CellTextLeft", fontName="Helvetica", fontSize=7, alignment=0
-  )
+        # 1. Título do Documento
+        elements.append(
+            Paragraph(
+                f"BOLETIM DIÁRIO DE SONDAGEM - {empresa.upper()}", title_style
+            )
+        )
+        elements.append(
+            Paragraph(
+                f"Projeto: {nome_projeto} | Furo: {furo_id} | Data:"
+                f" {dt_inicio.strftime('%d/%m/%Y')}",
+                sub_style,
+            )
+        )
+        elements.append(Spacer(1, 0.2 * cm))
 
-  # 1. Título do Documento
-  elements.append(
-      Paragraph(
-          f"BOLETIM DIÁRIO DE SONDAGE - {empresa.upper()}", title_style
-      )
-  )
-  elements.append(
-      Paragraph(
-          f"Projeto: {nome_projeto} | Furo: {furo_id} | Data:"
-          f" {dt_inicio.strftime('%d/%m/%Y')}",
-          sub_style,
-      )
-  )
-  elements.append(Spacer(1, 0.2 * cm))
+        # 2. Tabela de Cabeçalho / Informações Gerais
+        dados_cabecalho = [
+            [
+                Paragraph("<b>Empresa:</b>", cell_left_style),
+                Paragraph(empresa, cell_left_style),
+                Paragraph("<b>Furo ID:</b>", cell_left_style),
+                Paragraph(furo_id, cell_left_style),
+            ],
+            [
+                Paragraph("<b>Projeto:</b>", cell_left_style),
+                Paragraph(nome_projeto, cell_left_style),
+                Paragraph("<b>Diâmetro:</b>", cell_left_style),
+                Paragraph(diametro, cell_left_style),
+            ],
+            [
+                Paragraph("<b>Geólogo Resp.:</b>", cell_left_style),
+                Paragraph(geologo, cell_left_style),
+                Paragraph("<b>Coordenadas:</b>", cell_left_style),
+                Paragraph(f"{latitude:.5f}, {longitude:.5f}", cell_left_style),
+            ],
+            [
+                Paragraph("<b>Sondador/Equipe:</b>", cell_left_style),
+                Paragraph(sondador_equipe, cell_left_style),
+                Paragraph("<b>Inclin. / Azimute:</b>", cell_left_style),
+                Paragraph(f"{inclinacao}° / {azimute}°", cell_left_style),
+            ],
+        ]
 
-  # 2. Tabela de Cabeçalho / Informações Gerais
-  dados_cabecalho = [
-      [
-          Paragraph("<b>Empresa:</b>", cell_left_style),
-          Paragraph(empresa, cell_left_style),
-          Paragraph("<b>Furo ID:</b>", cell_left_style),
-          Paragraph(furo_id, cell_left_style),
-      ],
-      [
-          Paragraph("<b>Projeto:</b>", cell_left_style),
-          Paragraph(nome_projeto, cell_left_style),
-          Paragraph("<b>Diâmetro:</b>", cell_left_style),
-          Paragraph(diametro, cell_left_style),
-      ],
-      [
-          Paragraph("<b>Geólogo Resp.:</b>", cell_left_style),
-          Paragraph(geologo, cell_left_style),
-          Paragraph("<b>Coordenadas:</b>", cell_left_style),
-          Paragraph(f"{latitude:.5f}, {longitude:.5f}", cell_left_style),
-      ],
-      [
-          Paragraph("<b>Sondador/Equipe:</b>", cell_left_style),
-          Paragraph(sondador_equipe, cell_left_style),
-          Paragraph("<b>Inclin. / Azimute:</b>", cell_left_style),
-          Paragraph(f"{inclinacao}° / {azimute}°", cell_left_style),
-      ],
-  ]
+        table_cab = Table(dados_cabecalho, colWidths=[3.5 * cm, 9.5 * cm, 3.5 * cm, 9.5 * cm])
+        table_cab.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f4f7f5")),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#224234")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d0dcd5")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ])
+        )
+        elements.append(table_cab)
+        elements.append(Spacer(1, 0.4 * cm))
 
-  table_cab = Table(dados_cabecalho, colWidths=[3.5 * cm, 9.5 * cm, 3.5 * cm, 9.5 * cm])
-  table_cab.setStyle(
-      TableStyle([
-          ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f4f7f5")),
-          ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#224234")),
-          ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d0dcd5")),
-          ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-          ("TOPPADDING", (0, 0), (-1, -1), 4),
-          ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-      ])
-  )
-  elements.append(table_cab)
-  elements.append(Spacer(1, 0.4 * cm))
+        # 3. Tabela de Manobras
+        headers_boletim = [
+            "Item",
+            "Horário",
+            "De (m)",
+            "Até (m)",
+            "Avanço",
+            "Acum.",
+            "Rec. (m)",
+            "Rec. (%)",
+            "Nº Cx",
+            "Trab.(h)",
+            "Par.(h)",
+            "Descrição Litológica",
+        ]
 
-  # 3. Tabela de Manobras
-  headers_boletim = [
-      "Item",
-      "Horário",
-      "De (m)",
-      "Até (m)",
-      "Avanço",
-      "Acum.",
-      "Rec. (m)",
-      "Rec. (%)",
-      "Nº Cx",
-      "Trab.(h)",
-      "Par.(h)",
-      "Descrição Litológica",
-  ]
+        tabela_dados = [[Paragraph(h, header_cell_style) for h in headers_boletim]]
 
-  tabela_dados = [[Paragraph(h, header_cell_style) for h in headers_boletim]]
+        if not df.empty:
+            for _, row in df.iterrows():
+                tabela_dados.append([
+                    Paragraph(str(row["Item"]), cell_style),
+                    Paragraph(str(row["Horário"]), cell_style),
+                    Paragraph(f"{row['De (m)']:.2f}", cell_style),
+                    Paragraph(f"{row['Até (m)']:.2f}", cell_style),
+                    Paragraph(f"{row['Avanço (m)']:.2f}", cell_style),
+                    Paragraph(f"{row['Acumulado (m)']:.2f}", cell_style),
+                    Paragraph(f"{row['Recup. (m)']:.2f}", cell_style),
+                    Paragraph(f"{row['Recup. (%)']:.1f}%", cell_style),
+                    Paragraph(str(row["Nº Cx"]), cell_style),
+                    Paragraph(f"{row['Trabalhado']:.1f}", cell_style),
+                    Paragraph(f"{row['Parado']:.1f}", cell_style),
+                    Paragraph(
+                        str(row["Descrição Litológica / Observações"]), cell_left_style
+                    ),
+                ])
 
-  if not df.empty:
-    for _, row in df.iterrows():
-      tabela_dados.append([
-          Paragraph(str(row["Item"]), cell_style),
-          Paragraph(str(row["Horário"]), cell_style),
-          Paragraph(f"{row['De (m)']:.2f}", cell_style),
-          Paragraph(f"{row['Até (m)']:.2f}", cell_style),
-          Paragraph(f"{row['Avanço (m)']:.2f}", cell_style),
-          Paragraph(f"{row['Acumulado (m)']:.2f}", cell_style),
-          Paragraph(f"{row['Recup. (m)']:.2f}", cell_style),
-          Paragraph(f"{row['Recup. (%)']:.1f}%", cell_style),
-          Paragraph(str(row["Nº Cx"]), cell_style),
-          Paragraph(f"{row['Trabalhado']:.1f}", cell_style),
-          Paragraph(f"{row['Parado']:.1f}", cell_style),
-          Paragraph(
-              str(row["Descrição Litológica / Observações"]), cell_left_style
-          ),
-      ])
+            # Linha de Totais
+            tabela_dados.append([
+                Paragraph("<b>TOTAL</b>", cell_style),
+                Paragraph("-", cell_style),
+                Paragraph("-", cell_style),
+                Paragraph("-", cell_style),
+                Paragraph(f"<b>{progresso_total:.2f}</b>", cell_style),
+                Paragraph("-", cell_style),
+                Paragraph(f"<b>{recup_tot_m:.2f}</b>", cell_style),
+                Paragraph(f"<b>{media_rec:.1f}%</b>", cell_style),
+                Paragraph("-", cell_style),
+                Paragraph(f"<b>{total_trabalhado:.1f}</b>", cell_style),
+                Paragraph(f"<b>{total_paradas:.1f}</b>", cell_style),
+                Paragraph("-", cell_style),
+            ])
 
-    # Linha de Totais
-    tabela_dados.append([
-        Paragraph("<b>TOTAL</b>", cell_style),
-        Paragraph("-", cell_style),
-        Paragraph("-", cell_style),
-        Paragraph("-", cell_style),
-        Paragraph(f"<b>{progresso_total:.2f}</b>", cell_style),
-        Paragraph("-", cell_style),
-        Paragraph(f"<b>{recup_tot_m:.2f}</b>", cell_style),
-        Paragraph(f"<b>{media_rec:.1f}%</b>", cell_style),
-        Paragraph("-", cell_style),
-        Paragraph(f"<b>{total_trabalhado:.1f}</b>", cell_style),
-        Paragraph(f"<b>{total_paradas:.1f}</b>", cell_style),
-        Paragraph("-", cell_style),
-    ])
+        larguras_col = [
+            1.0 * cm,
+            2.0 * cm,
+            1.5 * cm,
+            1.5 * cm,
+            1.5 * cm,
+            1.5 * cm,
+            1.5 * cm,
+            1.6 * cm,
+            1.2 * cm,
+            1.4 * cm,
+            1.4 * cm,
+            8.4 * cm,
+        ]
 
-  larguras_col = [
-      1.0 * cm,
-      2.0 * cm,
-      1.5 * cm,
-      1.5 * cm,
-      1.5 * cm,
-      1.5 * cm,
-      1.5 * cm,
-      1.6 * cm,
-      1.2 * cm,
-      1.4 * cm,
-      1.4 * cm,
-      8.4 * cm,
-  ]
+        table_boletim = Table(tabela_dados, colWidths=larguras_col, repeatRows=1)
+        table_boletim.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#12221b")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#224234")),
+                ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#e8f5e9")),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ])
+        )
 
-  table_boletim = Table(tabela_dados, colWidths=larguras_col, repeatRows=1)
-  table_boletim.setStyle(
-      TableStyle([
-          ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#12221b")),
-          ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-          ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-          ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-          ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#224234")),
-          ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#e8f5e9")),
-          ("TOPPADDING", (0, 0), (-1, -1), 3),
-          ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-      ])
-  )
+        elements.append(table_boletim)
+        elements.append(Spacer(1, 0.4 * cm))
 
-  elements.append(table_boletim)
-  elements.append(Spacer(1, 0.4 * cm))
+        # 4. Observações Gerais
+        p_obs_title = Paragraph(
+            "<b>OBSERVAÇÕES GERAIS E OCORRÊNCIAS DE CAMPO:</b>", cell_left_style
+        )
+        p_obs_text = Paragraph(obs_gerais_furo, cell_left_style)
 
-  # 4. Observações Gerais
-  p_obs_title = Paragraph(
-      "<b>OBSERVAÇÕES GERAIS E OCORRÊNCIAS DE CAMPO:</b>", cell_left_style
-  )
-  p_obs_text = Paragraph(obs_gerais_furo, cell_left_style)
+        table_obs = Table([[p_obs_title], [p_obs_text]], colWidths=[26.0 * cm])
+        table_obs.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafafa")),
+                ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ])
+        )
+        elements.append(table_obs)
 
-  table_obs = Table([[p_obs_title], [p_obs_text]], colWidths=[26.0 * cm])
-  table_obs.setStyle(
-      TableStyle([
-          ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fafafa")),
-          ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
-          ("TOPPADDING", (0, 0), (-1, -1), 4),
-          ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-      ])
-  )
-  elements.append(table_obs)
+        # Construção final do PDF
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
 
-  # Construção final do PDF
-  doc.build(elements)
-  buffer.seek(0)
-  return buffer
-
-
-if not df.empty:
-  pdf_data = gerar_pdf_boa_fortuna()
-  st.download_button(
-      label="📄 Baixar Relatório PDF Completo",
-      data=pdf_data,
-      file_name=f"Boletim_Sondagem_{furo_id}_{datetime.now().strftime('%Y%m%d')}.pdf",
-      mime="application/pdf",
-      type="primary",
-      use_container_width=True,
-  )
-else:
-  st.warning(
-      "Adicione ao menos uma manobra para habilitar a geração do relatório PDF."
-  )
+    if not df.empty:
+        pdf_data = gerar_pdf_boa_fortuna()
+        st.download_button(
+            label="📄 Baixar Relatório PDF Completo",
+            data=pdf_data,
+            file_name=f"Boletim_Sondagem_{furo_id}_{datetime.now().strftime('%Y%m%d')}.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+        )
+    else:
+        st.warning(
+            "Adicione ao menos uma manobra para habilitar a geração do relatório PDF."
+        )
