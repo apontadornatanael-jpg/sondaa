@@ -831,192 +831,85 @@ else:
         elements.append(t_obs)
         elements.append(Spacer(1, 0.3*cm))
 
-        # --- 5. BLOCO DE ASSINATURAS ---
-        sig_cell = ParagraphStyle('SigCell', fontName='Helvetica', fontSize=7, alignment=1)
-        sig_data = [
-            [Paragraph("________________________________________<br/><b>Sondador/Equipe</b><br/>Sondador/Operador Responsável", sig_cell),
-             Paragraph("________________________________________<br/><b>Geólogo Responsável</b><br/>Fiscalização de Campo/Geologia", sig_cell),
-             Paragraph("________________________________________<br/><b>Empresa / Cliente</b><br/>Supervisão de Operações", sig_cell)]
-        ]
-        t_sig = Table(sig_data, colWidths=[9.0*cm, 9.2*cm, 9.0*cm])
-        t_sig.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-        ]))
-        elements.append(KeepTogether(t_sig))
+        # --- 5. EXPORTAÇÃO DO GRÁFICO PLOTLY PARA O PDF (USANDO KALEIDO) ---
+        if fig_rec is not None and not df.empty:
+            try:
+                img_bytes_chart = fig_rec.to_image(format="png", width=1000, height=350, engine="kaleido")
+                chart_stream = io.BytesIO(img_bytes_chart)
+                rl_chart = RLImage(chart_stream, width=27.2*cm, height=7.0*cm)
+                elements.append(KeepTogether([
+                    Paragraph("<b>GRÁFICO DE AVANÇO VS. RECUPERAÇÃO</b>", sub_title_style),
+                    Spacer(1, 0.1*cm),
+                    rl_chart
+                ]))
+                elements.append(Spacer(1, 0.3*cm))
+            except Exception as e:
+                elements.append(Paragraph(f"<i>Não foi possível renderizar o gráfico no PDF: {e}</i>", cell_left))
 
-        # ==========================================
-        # PÁGINA 2: ANEXO DE FOTOS
-        # ==========================================
-        elements.append(PageBreak())
-        elements.append(Paragraph(f"<b>ANEXO: REGISTRO FOTOGRÁFICO DOS TESTEMUNHOS - FURO {furo_id}</b>", sub_title_style))
-        elements.append(Paragraph(f"Projeto: {nome_projeto} | Data: {dt_inicio.strftime('%d/%m/%Y')}", cell_left))
-        elements.append(Spacer(1, 0.4*cm))
-
-        fotos_coletadas = []
+        # --- 6. ANEXO FOTOGRÁFICO DE MANOBRAS ---
+        todas_fotos = []
         if not df.empty:
-            for idx, row in df.iterrows():
-                if "Fotos" in row and isinstance(row["Fotos"], list):
-                    for f_img in row["Fotos"]:
-                        fotos_coletadas.append((row["Item"], row["De (m)"], row["Até (m)"], f_img))
+            for _, r in df.iterrows():
+                fotos_lista = r.get("Fotos", [])
+                if isinstance(fotos_lista, list):
+                    for idx, img_pil in enumerate(fotos_lista):
+                        todas_fotos.append((r["Item"], r["De (m)"], r["Até (m)"], idx + 1, img_pil))
 
-        if fotos_coletadas:
-            grid_fotos = []
-            row_curr = []
-            for item_num, de_m, ate_m, img_pil in fotos_coletadas:
-                buf_img = io.BytesIO()
-                img_pil.save(buf_img, format='JPEG')
-                buf_img.seek(0)
+        if todas_fotos:
+            elements.append(PageBreak())
+            elements.append(Paragraph("<b>ANEXO FOTOGRÁFICO DAS MANOBRAS DE SONDAGEM</b>", title_style))
+            elements.append(Spacer(1, 0.3*cm))
+
+            foto_rows = []
+            row_temp = []
+            for item_num, de_m, ate_m, f_idx, img_p in todas_fotos:
+                img_buf = io.BytesIO()
+                img_p.save(img_buf, format='JPEG', quality=85)
+                img_buf.seek(0)
                 
-                rl_img = RLImage(buf_img, width=8.0*cm, height=5.5*cm)
-                cap = Paragraph(f"<b>Manobra {item_num} ({de_m:.2f}m - {ate_m:.2f}m)</b>", cell_center)
-                cell_box = Table([[rl_img], [cap]], colWidths=[8.2*cm])
+                rl_img = RLImage(img_buf, width=8.2*cm, height=5.5*cm)
+                caption = Paragraph(f"<b>Manobra {item_num}</b> ({de_m:.2f}m - {ate_m:.2f}m) - Foto {f_idx}", cell_center)
+                cell_box = Table([[rl_img], [caption]], colWidths=[8.5*cm])
                 cell_box.setStyle(TableStyle([
-                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#cccccc")),
                     ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#fcfcfc")),
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#fafafa")),
                     ('TOPPADDING', (0,0), (-1,-1), 3),
                     ('BOTTOMPADDING', (0,0), (-1,-1), 3),
                 ]))
-                row_curr.append(cell_box)
 
-                if len(row_curr) == 3:
-                    grid_fotos.append(row_curr)
-                    row_curr = []
+                row_temp.append(cell_box)
+                if len(row_temp) == 3:
+                    foto_rows.append(row_temp)
+                    row_temp = []
 
-            if row_curr:
-                while len(row_curr) < 3:
-                    row_curr.append(Paragraph("", cell_center))
-                grid_fotos.append(row_curr)
+            if row_temp:
+                while len(row_temp) < 3:
+                    row_temp.append(Paragraph("", cell_center))
+                foto_rows.append(row_temp)
 
-            t_fotos = Table(grid_fotos, colWidths=[8.8*cm, 8.8*cm, 8.8*cm])
+            t_fotos = Table(foto_rows, colWidths=[8.8*cm, 8.8*cm, 8.8*cm])
             t_fotos.setStyle(TableStyle([
                 ('VALIGN', (0,0), (-1,-1), 'TOP'),
                 ('ALIGN', (0,0), (-1,-1), 'CENTER'),
                 ('BOTTOMPADDING', (0,0), (-1,-1), 10),
             ]))
             elements.append(t_fotos)
-        else:
-            elements.append(Paragraph("Nenhum registro fotográfico foi anexado para este boletim de sondagem.", cell_left))
 
-        # ==========================================
-        # PÁGINA 3: ANÁLISE DIGITAL E GEOLOCALIZAÇÃO
-        # ==========================================
-        elements.append(PageBreak())
-        elements.append(Paragraph(f"<b>ANEXO: ANÁLISE DIGITAL, GRÁFICOS E GEOLOCALIZAÇÃO - FURO {furo_id}</b>", sub_title_style))
-        elements.append(Paragraph(f"Projeto: {nome_projeto} | Data: {dt_inicio.strftime('%d/%m/%Y')}", cell_left))
-        elements.append(Spacer(1, 0.4*cm))
-
-        # Tabela de Parâmetros de Localização
-        geo_data = [
-            [Paragraph("<b>PARÂMETRO DE LOCALIZAÇÃO</b>", header_cell), Paragraph("<b>VALOR REGISTRADO</b>", header_cell)],
-            [Paragraph("Latitude", cell_left), Paragraph(f"{latitude:.6f}", cell_center)],
-            [Paragraph("Longitude", cell_left), Paragraph(f"{longitude:.6f}", cell_center)],
-            [Paragraph("Datum Geodésico", cell_left), Paragraph(datum, cell_center)],
-            [Paragraph("Inclinação / Azimute", cell_left), Paragraph(f"{inclinacao}° / {azimute}°", cell_center)],
-        ]
-        t_geo = Table(geo_data, colWidths=[13.0*cm, 13.0*cm])
-        t_geo.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#12221b")),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#224234")),
-            ('BACKGROUND', (0,1), (-1,-1), colors.HexColor("#fafafa")),
-            ('TOPPADDING', (0,0), (-1,-1), 3),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ]))
-        elements.append(t_geo)
-        elements.append(Spacer(1, 0.6*cm))
-
-        # Desenho dos Gráficos em ReportLab Nativo
-        from reportlab.graphics.charts.barcharts import VerticalBarChart
-        from reportlab.graphics.charts.piecharts import Pie
-
-        # Gráfico 1: Avanço vs Recuperação
-        d1 = Drawing(380, 160)
-        bc = VerticalBarChart()
-        bc.x = 35
-        bc.y = 25
-        bc.height = 115
-        bc.width = 320
-        
-        if not df.empty:
-            bc.data = [df["Avanço (m)"].tolist(), df["Recup. (m)"].tolist()]
-            bc.categoryAxis.categoryNames = [str(i) for i in df["Item"].tolist()]
-        else:
-            bc.data = [[0], [0]]
-            bc.categoryAxis.categoryNames = ['1']
-            
-        bc.bars[0].fillColor = colors.HexColor("#0288d1")
-        bc.bars[1].fillColor = colors.HexColor("#2e7d32")
-        bc.categoryAxis.labels.fontSize = 7
-        bc.valueAxis.valueMin = 0
-        d1.add(bc)
-
-        # Gráfico 2: Distribuição de Horas
-        d2 = Drawing(260, 160)
-        pc = Pie()
-        pc.x = 50
-        pc.y = 15
-        pc.width = 130
-        pc.height = 130
-        pc.data = [max(0.1, total_trabalhado), max(0.1, total_paradas)]
-        pc.labels = ['Trabalhadas', 'Paradas']
-        pc.slices[0].fillColor = colors.HexColor("#2e7d32")
-        pc.slices[1].fillColor = colors.HexColor("#e53935")
-        d2.add(pc)
-
-        t_graficos = Table([
-            [Paragraph("<b>Avanço vs. Recuperação por Manobra</b>", cell_center), Paragraph("<b>Distribuição das Horas de Trabalho</b>", cell_center)],
-            [d1, d2]
-        ], colWidths=[14.0*cm, 12.0*cm])
-        t_graficos.setStyle(TableStyle([
-            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-            ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#e0e0e0")),
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#f4f7f5")),
-            ('TOPPADDING', (0,0), (-1,-1), 4),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-        ]))
-        elements.append(t_graficos)
-
-        # Numerador de Páginas Personalizado
-        class NumberedCanvas(canvas.Canvas):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self._saved_page_states = []
-
-            def showPage(self):
-                self._saved_page_states.append(dict(self.__dict__))
-                self._startPage()
-
-            def save(self):
-                num_pages = len(self._saved_page_states)
-                for state in self._saved_page_states:
-                    self.__dict__.update(state)
-                    self.draw_page_number(num_pages)
-                    super().showPage()
-                super().save()
-
-            def draw_page_number(self, page_count):
-                self.setFont("Helvetica", 7)
-                self.setFillColor(colors.HexColor("#555555"))
-                self.drawRightString(28.5 * cm, 0.8 * cm, f"Página {self._pageNumber} de {page_count}")
-
-        doc.build(elements, canvasmaker=NumberedCanvas)
+        doc.build(elements)
         buffer.seek(0)
         return buffer
 
-    if not df.empty:
-        pdf_data = gerar_pdf_boa_fortuna()
-        st.download_button(
-            label="📄 Baixar Relatório PDF Completo",
-            data=pdf_data,
-            file_name=f"Relatorio_{furo_id}.pdf",
-            mime="application/pdf",
-            type="primary",
-            use_container_width=True,
-        )
-    else:
-        st.warning(
-            "Adicione ao menos uma manobra para habilitar a geração do relatório PDF."
-        )
+    # --- BOTÃO DE DOWNLOAD NA INTERFACE ---
+    col_dl1, col_dl2 = st.columns([1, 2])
+    with col_dl1:
+        if st.button("Gerar Relatório PDF", type="primary", use_container_width=True):
+            pdf_out = gerar_pdf_boa_fortuna()
+            st.download_button(
+                label=" Baixar Relatório PDF Completo",
+                data=pdf_out,
+                file_name=f"Relatorio_Sondagem_{furo_id}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
