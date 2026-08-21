@@ -722,7 +722,7 @@ else:
         kpi_val_style = ParagraphStyle('KPIVal', fontName='Helvetica-Bold', fontSize=11, textColor=colors.HexColor("#12221b"), alignment=1)
 
         # --- 1. CABEÇALHO DO DOCUMENTO ---
-        logo_element = Paragraph("<b>BOA FORTUNA</b><br><font size=6>INVESTIMENTOS</font>", title_style)
+        logo_element = Paragraph('<b>BOA FORTUNA</b><br/><font size="6">INVESTIMENTOS</font>', title_style)
         if img_logo_pil:
             img_byte_arr = io.BytesIO()
             img_logo_pil.save(img_byte_arr, format='PNG')
@@ -731,9 +731,9 @@ else:
 
         header_data = [
             [logo_element, 
-             Paragraph(f"<b>Empresa:</b> {empresa}<br><b>Projeto:</b> {nome_projeto}<br><b>Coordenador:</b> {coordenador}<br><b>Geólogo:</b> {geologo}", cell_left),
-             Paragraph(f"<b>Furo:</b> {furo_id}<br><b>Diâmetro:</b> {diametro}<br><b>Supervisor:</b> {supervisor}<br><b>Sondador/Equipe:</b> {sondador_equipe}", cell_left),
-             Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m/%Y')} a {dt_termino.strftime('%d/%m/%Y')}<br><b>Coordenadas:</b> Lat: {latitude:.6f} | Long: {longitude:.6f}<br><b>Datum:</b> {datum}<br><b>Inclin. / Azim.:</b> {inclinacao}°/{azimute}°", cell_left)]
+             Paragraph(f"<b>Empresa:</b> {empresa}<br/><b>Projeto:</b> {nome_projeto}<br/><b>Coordenador:</b> {coordenador}<br/><b>Geólogo:</b> {geologo}", cell_left),
+             Paragraph(f"<b>Furo:</b> {furo_id}<br/><b>Diâmetro:</b> {diametro}<br/><b>Supervisor:</b> {supervisor}<br/><b>Sondador/Equipe:</b> {sondador_equipe}", cell_left),
+             Paragraph(f"<b>Início/Fim:</b> {dt_inicio.strftime('%d/%m/%Y')} a {dt_termino.strftime('%d/%m/%Y')}<br/><b>Coordenadas:</b> Lat: {latitude:.6f} | Long: {longitude:.6f}<br/><b>Datum:</b> {datum}<br/><b>Inclin. / Azim.:</b> {inclinacao}°/{azimute}°", cell_left)]
         ]
         t_header = Table(header_data, colWidths=[4.0*cm, 7.5*cm, 7.5*cm, 8.2*cm])
         t_header.setStyle(TableStyle([
@@ -834,9 +834,9 @@ else:
         # --- 5. BLOCO DE ASSINATURAS ---
         sig_cell = ParagraphStyle('SigCell', fontName='Helvetica', fontSize=7, alignment=1)
         sig_data = [
-            [Paragraph("________________________________________<br><b>Sondador/Equipe</b><br>Sondador/Operador Responsável", sig_cell),
-             Paragraph("________________________________________<br><b>Geólogo Responsável</b><br>Fiscalização de Campo/Geologia", sig_cell),
-             Paragraph("________________________________________<br><b>Empresa / Cliente</b><br>Supervisão de Operações", sig_cell)]
+            [Paragraph("________________________________________<br/><b>Sondador/Equipe</b><br/>Sondador/Operador Responsável", sig_cell),
+             Paragraph("________________________________________<br/><b>Geólogo Responsável</b><br/>Fiscalização de Campo/Geologia", sig_cell),
+             Paragraph("________________________________________<br/><b>Empresa / Cliente</b><br/>Supervisão de Operações", sig_cell)]
         ]
         t_sig = Table(sig_data, colWidths=[9.0*cm, 9.2*cm, 9.0*cm])
         t_sig.setStyle(TableStyle([
